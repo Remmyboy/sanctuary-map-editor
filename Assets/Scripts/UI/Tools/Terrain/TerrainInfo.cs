@@ -350,7 +350,7 @@ namespace EditMap
 
 				if (KeyboardManager.IncreaseTarget())
 				{
-					if (BrushTarget.value < 256)
+					if (BrushTarget.value < MapTop)
 						BrushTarget.SetValue((int)BrushTarget.value + 1);
 				}
 				else if (KeyboardManager.DecreaseTarget())
@@ -384,6 +384,22 @@ namespace EditMap
 		}
 		public float NormalizedMin = 0;
 		public float NormalizedMax = 1;
+
+		/// The map's full height in metres. FA maps were 256 tall, and the
+		/// brush fields started at 256; every brush clamps the ground under it
+		/// to [Min height, Max height], so on a 410 m Sanctuary map a stroke
+		/// over high ground cut it down to 256 m.
+		static float MapTop => ScmapEditor.Current.Data.size.y * 10f;
+
+		/// On map load: min/max span the whole map, target stays inside it.
+		public void FitHeightRange()
+		{
+			BrushMini.SetValue(0f);
+			BrushMax.SetValue(MapTop);
+			if (BrushTarget.value > MapTop) BrushTarget.SetValue(MapTop);
+			NormalizedMin = 0;
+			NormalizedMax = 1;
+		}
 
 		int LastRotation = 0;
 		public void UpdateMenu(bool Slider = false)
@@ -921,7 +937,7 @@ namespace EditMap
 			}
 
 
-			float TargetHeight = Mathf.Clamp((Invert ? 256 : BrushTarget.value) / ScmapEditor.Current.Data.size.y / 10f, NormalizedMin, NormalizedMax);
+			float TargetHeight = Mathf.Clamp((Invert ? MapTop : BrushTarget.value) / ScmapEditor.Current.Data.size.y / 10f, NormalizedMin, NormalizedMax);
 
 			float BrushStrenghtValue = BrushStrength.value;
 			//float PaintStrength = BrushStrenghtValue * 0.00005f * (Invert ? (-1) : 1);

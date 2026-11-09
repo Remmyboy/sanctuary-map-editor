@@ -273,6 +273,7 @@ namespace Sanctuary
 			parser.EditMenu.Categorys[0].GetComponent<EditMap.MapInfo>().UpdateFields();
 			parser.UpdateArea();
 			LogMarkerFit();
+			parser.EditMenu?.EditTerrain?.FitHeightRange();
 
 			string msg = $"Sanctuary map loaded: {folder.FolderName}\n{m.ArmyNames.Count} armies, {markers.Count} markers, {Size} m, {m.Height} m tall";
 			if (problems.Count > 0) msg += "\n" + string.Join("\n", problems);
