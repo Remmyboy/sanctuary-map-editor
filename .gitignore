@@ -82,3 +82,7 @@ crashlytics-build.properties
 
 # macOS 
 .DS_Store
+
+# dotnet test harness outside the Unity project
+/Tools~/**/bin/
+/Tools~/**/obj/
