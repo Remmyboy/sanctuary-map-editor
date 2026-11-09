@@ -90,3 +90,4 @@ crashlytics-build.properties
 
 # packaged builds (Tools~/package.ps1)
 /release/
+/BuildTest/
