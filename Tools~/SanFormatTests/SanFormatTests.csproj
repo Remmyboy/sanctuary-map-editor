@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Round-trips real Sanctuary maps through Assets/Scripts/Sanctuary/Format
+       without Unity. Unity ignores folders ending in ~, so this never enters
+       the editor build. LangVersion 9 matches Unity 2022.3's compiler. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/Scripts/Sanctuary/Format/*.cs" Link="Format/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 13.0.2 is what com.unity.nuget.newtonsoft-json 3.2.1 ships. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+  </ItemGroup>
+</Project>

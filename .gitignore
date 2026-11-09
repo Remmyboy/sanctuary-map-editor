@@ -86,3 +86,4 @@ crashlytics-build.properties
 # dotnet test harness outside the Unity project
 /Tools~/**/bin/
 /Tools~/**/obj/
+!/Tools~/**/*.csproj
