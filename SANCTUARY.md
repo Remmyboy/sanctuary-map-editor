@@ -16,7 +16,8 @@ the texture and prop libraries, which it reads from a Forged Alliance install.
 | Phase | What | State |
 |---|---|---|
 | 1 | `.sanmap` format layer, no Unity dependency | **done**, tested on 150 maps |
-| 2 | Open a `.sanmap` in the editor: terrain, water, markers, playable area | next; needs Unity 2022.3 |
+| 1b | Project on Unity 6000.3 LTS, headless build | **done**: compiles clean, builds, launches |
+| 2 | Open a `.sanmap` in the editor: terrain, water, markers, playable area | next |
 | 3 | Save back: heightmap, stratum masks, markers, unedited fields kept | |
 | 4 | Terrain rendering close to the game's `RTS/TerrainLit` (9 layers: albedo, normal, mask, tiling, `diffuseRemap`) | |
 | 5 | Sanctuary texture and prop libraries (`Environment.sanpack`, `.santp`, `.sanmodel`) | |
@@ -99,6 +100,19 @@ here, and none may be: it is not MIT.
   `PropsInfo` (11) and the HazardX `Map.cs` (11).
 - **Shaders:** `Assets/GFX/Shaders/FaTerrainShader.shader` and
   `FaWaterShader.shader` get Sanctuary counterparts in phase 4.
-- **Unity version:** stay on 2022.3. The editor reads raw files and never
-  loads the game's own Unity assets, so it does not need to match the game's
-  Unity 6000.3.
+- **Unity version:** 6000.3 LTS (6000.3.28f1), the same line the game is
+  built on (6000.3.22f1). The editor reads raw files today, but staying on
+  the game's line keeps it possible to load the game's own assets later.
+
+## Building
+
+Needs Unity 6000.3.28f1 (install it through Unity Hub) and a signed-in Unity
+licence (the free Personal licence will do).
+
+```
+"C:\Program Files\Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe" -batchmode -quit ^
+  -projectPath . -executeMethod SanctuaryBuild.Build -buildPath Build -logFile build.log
+```
+
+This writes `Build\SanctuaryMapEditor.exe`. The same build is on the
+**Build > Sanctuary Map Editor (64bit)** menu in the Unity editor.
