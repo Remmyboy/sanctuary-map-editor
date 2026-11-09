@@ -26,7 +26,36 @@ public class PreviewTex : MonoBehaviour {
 		RenderingPreview = on;
 	}
 	
-	public Texture2D RenderPreview(float HeightOffset = 0, int Width = 256, int Height = 256, bool Flip = true, bool RenderEverything = false) {
+	/// Orthographic top-down render of a square region (editor world units),
+	/// for Sanctuary previews: they cover the playable area only, and an
+	/// orthographic view keeps spawn badges on their spawns whatever the
+	/// terrain height.
+	/// (A true orthographic camera renders this terrain shader black, so this
+	/// is a 5-degree telephoto from far above: within ~2 m of orthographic at
+	/// the edge of a 1 km area with 40 m of relief.)
+	public Texture2D RenderPreviewOrtho(Vector3 center, float sizeWorld, int Width, int Height, float topY, float planeY)
+	{
+		const float Fov = 5f;
+		float wasFov = Cam.fieldOfView;
+		float wasFar = Cam.farClipPlane;
+		float wasNear = Cam.nearClipPlane;
+		float distance = sizeWorld * 0.5f / Mathf.Tan(Fov * 0.5f * Mathf.Deg2Rad);
+		Cam.fieldOfView = Fov;
+		Cam.nearClipPlane = Mathf.Max(0.3f, distance - topY - 10f);
+		Cam.farClipPlane = distance + planeY + 100f;
+		try
+		{
+			return RenderPreview(0, Width, Height, false, false, new Vector3(center.x, planeY + distance, center.z));
+		}
+		finally
+		{
+			Cam.fieldOfView = wasFov;
+			Cam.farClipPlane = wasFar;
+			Cam.nearClipPlane = wasNear;
+		}
+	}
+
+	public Texture2D RenderPreview(float HeightOffset = 0, int Width = 256, int Height = 256, bool Flip = true, bool RenderEverything = false, Vector3? CameraPosition = null) {
 		RenderingPreview = true;
 
 		//Sbool Slope = ScmapEditor.Current.Slope;
@@ -51,7 +80,7 @@ public class PreviewTex : MonoBehaviour {
 		distance = (Size) * 0.5f / Mathf.Tan(Cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
 
 		CamPos.y = distance + HeightOffset;
-		transform.position = CamPos;
+		transform.position = CameraPosition ?? CamPos;
 
 		//Cam.targetTexture.width = Width;
 		//Cam.targetTexture.height = Height;

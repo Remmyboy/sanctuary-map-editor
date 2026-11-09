@@ -21,7 +21,8 @@ the texture and prop libraries, which it reads from a Forged Alliance install.
 | 3 | Save back: heightmap, stratum masks, markers, unedited fields kept | **done**: verified in game |
 | 4 | Terrain rendering close to the game's `RTS/TerrainLit` (9 layers: albedo, normal, mask, tiling, `diffuseRemap`) | |
 | 5 | Sanctuary texture and prop libraries (`Environment.sanpack`, `.santp`, `.sanmodel`) | |
-| 6 | Remove or hide FA-only tools: units, AI markers, Lua scenario scripts, FAF vault upload, Neroxis generator | |
+| 3b | Save As, regenerated `preview.png`, New Map for Sanctuary | **done**: a new map plays in game |
+| 6 | Remove or hide FA-only tools: units, AI markers, Lua scenario scripts, FAF vault upload, Neroxis generator | started: Lighting, Props, Decals, Units tabs hidden on Sanctuary maps |
 
 ## Phase 1: the format layer
 
@@ -192,13 +193,54 @@ and `dotnet run --project Tools~/SanFormatTests -- --diff <original> <saved>`:
   (12.224 m on the original map) and 25.337 m outside it (unchanged), matching
   the file. The raised square shows in the central crater.
 
-Not yet:
+Not yet: saving through the menu by hand is untested. Every check above ran
+from the command line, through the same functions the menu calls.
 
-- **Save as:** only on the command line (`-saveto`); the menu has no
-  Sanctuary "Save as".
-- **Preview:** `preview.png` isn't regenerated.
-- **Manual testing:** saving through the menu by hand is untested; every check
-  above ran from the command line.
+## Save As, previews, new maps
+
+- **Save As** (and *Save as new version*, which means nothing to Sanctuary)
+  picks or creates a folder in the game's Maps folder. The folder name is the
+  map's key, so it is made safe (`My Test Map` becomes `My_Test_Map`). An
+  existing non-empty folder is never overwritten. The map is written there
+  with all its textures, and if its name wasn't edited it takes the folder's
+  name, so two copies don't share a name in the lobby.
+- **`preview.png`** is redrawn on every save. The lobby reads only that file
+  (`LobbyManager`). It is a top-down view of the playable area, north up, with
+  numbered slot badges in the developers' colours, which were read off their
+  previews with `Tools~/sample-badges.ps1`. A true orthographic camera renders
+  this terrain shader black, so it is a 5° telephoto from far above.
+- **New Map**, when a Sanctuary install is found, makes a Sanctuary map
+  (`SanMapFactory`):
+  - **Look:** texture layers, lighting, fog, sky and water style come from the
+    open Sanctuary map (else Two Step Shuffle).
+  - **Size:** the window's width and height are the playable area. The terrain
+    is twice that, capped at 4096 m, with the area centred, as on the
+    developers' maps.
+  - **Contents:** flat ground at the chosen height, optional water, a ring of
+    spawns, empty masks and neutral tint maps (values measured on the shipped
+    maps).
+  - **Finish:** the new map is then opened and saved once, which draws its
+    preview.
+
+Command line, through the same functions:
+
+```
+SanctuaryMapEditor.exe -newmap <maps dir> <name> <playable m> <armies> <ground m> <water m or -1>
+SanctuaryMapEditor.exe -sanmap <map> -saveas <folder>     # Save As minus the dialog
+SanctuaryMapEditor.exe -sanmap <map> -menusave            # File > Save
+```
+
+Checked:
+
+- **Save As:** Two Step Shuffle saved as "My Test Map". The only JSON change is
+  the name; the heightmap and TGAs are byte-identical, and the preview is
+  redrawn.
+- **Previews:** for The Forge, Two Step Shuffle and White Desert the framing
+  and badge positions match the game's own previews.
+- **New map in game:** made into the game's Maps folder, it starts a skirmish
+  against the AI. `Engine.SampleTerrainHeight` reads the chosen 30 m, the
+  simulation ticks, and the commander and the AI start on their spawns
+  (2026-11-09).
 
 ## Phase 4 onwards: where the seams are
 

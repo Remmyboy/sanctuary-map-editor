@@ -86,6 +86,33 @@ namespace EditMap
 				return;
 			}
 
+			// With a Sanctuary install, New Map makes a Sanctuary map. Width
+			// and height are the playable area; the look comes from the open
+			// Sanctuary map (or Two Step Shuffle).
+			string sanMaps = Sanctuary.SanctuaryPaths.MapsDir;
+			if (sanMaps != null)
+			{
+				string problem = Sanctuary.SanctuaryNewMap.Validate(Name.text, sanMaps);
+				if (problem != null)
+				{
+					GenericPopup.ShowPopup(GenericPopup.PopupTypes.OneButton, "Warning", problem, "OK", null);
+					return;
+				}
+				var o = new Sanctuary.MapFormat.NewMapOptions
+				{
+					Name = Name.text,
+					PlayableWidth = SizeByValue(Width.value),
+					PlayableLength = SizeByValue(Height.value),
+					Armies = ArmyCount.value + 1,
+					GroundHeight = InitialHeight.intValue,
+					Water = Water.isOn,
+					WaterLevel = WaterElv.intValue,
+				};
+				MapLuaParser.Current.StartCoroutine(Sanctuary.SanctuaryNewMap.Create(sanMaps, o));
+				gameObject.SetActive(false);
+				return;
+			}
+
 			MapPath = EnvPaths.GetMapsPath();
 			string Error = "";
 			if (!Directory.Exists(MapPath))

@@ -27,11 +27,13 @@ namespace Sanctuary
 			public List<string> SkippedMarkers = new List<string>();
 			public string BackupDir;
 			public string SavedTo;
+			public string Preview;
 			public List<string> Problems = new List<string>();
 			public override string ToString() =>
 				$"saved {SavedTo}: {HeightCellsChanged} heightmap cells changed, {MarkersWritten} markers" +
 				(SkippedMarkers.Count > 0 ? $", {SkippedMarkers.Count} FA-only markers not saved ({string.Join(", ", SkippedMarkers.Take(5))})" : "") +
-				(BackupDir != null ? $"; backup in {BackupDir}" : "");
+				(BackupDir != null ? $"; backup in {BackupDir}" : "") +
+				(Preview != null ? "; preview.png updated" : "");
 		}
 
 		public static Report LastReport { get; private set; }
@@ -63,7 +65,9 @@ namespace Sanctuary
 				WriteArea(folder);
 				WriteWater(folder);
 
+				if (!inPlace) RenameForNewFolder(folder, targetDir);
 				folder.Save(inPlace ? null : targetDir);
+				if (!inPlace) FollowNewFolder(folder);
 				report.SavedTo = folder.Directory;
 				report.Problems = folder.Validate();
 			}
@@ -73,6 +77,15 @@ namespace Sanctuary
 				report.Problems.Add("save failed: " + e.Message);
 			}
 
+			// The lobby's picture. Rendered after the files are written, so
+			// a render problem can never cost the save.
+			if (report.SavedTo != null)
+			{
+				for (int f = 0; f < 3; f++) yield return new WaitForEndOfFrame();
+				try { report.Preview = SanctuaryPreview.Write(folder); }
+				catch (Exception e) { Debug.LogException(e); report.Problems.Add("preview.png not updated: " + e.Message); }
+			}
+
 			LastReport = report;
 			MapLuaParser.SavingMapProcess = false;
 			parser.InfoPopup.Show(false);
@@ -80,6 +93,41 @@ namespace Sanctuary
 			if (report.Problems.Count > 0) msg += "\n" + string.Join("\n", report.Problems);
 			Debug.Log(msg);
 			GenericInfoPopup.ShowInfo(msg);
+		}
+
+		// ---- save as -----------------------------------------------------
+
+		/// A copy saved under a new folder would otherwise show in the lobby
+		/// with the original's name. If the name was not edited, take it from
+		/// the new folder ("My_Map" -> "My Map").
+		static void RenameForNewFolder(SanMapFolder folder, string targetDir)
+		{
+			var sc = MapLuaParser.Current.ScenarioLuaFile.Data;
+			string oldName = folder.Map.Name;
+			if (!string.IsNullOrEmpty(sc.name) && sc.name != oldName) return; // edited by hand: WriteScenario keeps it
+			string fresh = Path.GetFileName(Path.GetFullPath(targetDir).TrimEnd('\\', '/')).Replace('_', ' ');
+			folder.Map.Name = fresh;
+			sc.name = fresh;
+		}
+
+		/// After Save As the editor works on the new copy.
+		static void FollowNewFolder(SanMapFolder folder)
+		{
+			var parser = MapLuaParser.Current;
+			parser.FolderName = folder.FolderName;
+			parser.ScenarioFileName = folder.FolderName;
+			parser.FolderParentPath = Path.GetDirectoryName(folder.Directory).Replace('\\', '/') + "/";
+			WindowStateSever.WindowStateSaver.ChangeWindowName(folder.FolderName);
+		}
+
+		/// Folder names become map keys: no spaces, nothing the file system
+		/// or the game's path handling would trip on.
+		public static string SafeFolderName(string name)
+		{
+			var chars = name.Trim().Select(ch => char.IsLetterOrDigit(ch) || ch == '_' || ch == '-' ? ch : '_').ToArray();
+			string s = new string(chars);
+			while (s.Contains("__")) s = s.Replace("__", "_");
+			return s.Trim('_');
 		}
 
 		// ---- backup ------------------------------------------------------
