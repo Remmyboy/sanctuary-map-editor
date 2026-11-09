@@ -19,7 +19,7 @@ namespace Sanctuary
 		// key: lower-case path without extension -> extension -> entry
 		static Dictionary<string, Dictionary<string, KeyValuePair<ZipFile, ZipEntry>>> index;
 		static readonly List<ZipFile> open = new List<ZipFile>();
-		static readonly Dictionary<string, Texture2D> cache = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+		static readonly Dictionary<string, Texture2D> textureCache = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
 
 		public static int EntryCount { get; private set; }
 
@@ -56,6 +56,19 @@ namespace Sanctuary
 				}
 			}
 			Debug.Log($"Sanctuary gamedata: {EntryCount} files from {open.Count} packs in {dir}");
+		}
+
+		/// Every file stem (path without extension) in the game's packs.
+		public static IEnumerable<string> Stems()
+		{
+			EnsureLoaded();
+			return index.Keys;
+		}
+
+		public static bool Exists(string stem)
+		{
+			EnsureLoaded();
+			return index.ContainsKey(stem);
 		}
 
 		/// Bytes of a game or map file, and the extension actually found.
@@ -99,11 +112,12 @@ namespace Sanctuary
 		}
 
 		/// A texture by the path a .sanmap names, or null when it cannot be found.
-		public static Texture2D LoadTexture(string path, bool linear)
+		public static Texture2D LoadTexture(string path, bool linear, bool cache = true)
 		{
 			if (string.IsNullOrEmpty(path)) return null;
 			string key = (linear ? "lin:" : "srgb:") + path;
-			if (cache.TryGetValue(key, out var t) && t != null) return t;
+			if (cache && textureCache.TryGetValue(key, out var t) && t != null) return t;
+			t = null;
 
 			byte[] b = ReadBytes(path, out string ext);
 			if (b == null)
@@ -129,7 +143,7 @@ namespace Sanctuary
 			}
 			t.name = Path.GetFileName(path);
 			t.wrapMode = TextureWrapMode.Repeat;
-			cache[key] = t;
+			if (cache) textureCache[key] = t;
 			return t;
 		}
 

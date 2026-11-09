@@ -35,6 +35,20 @@ namespace Sanctuary
 			Debug.Log($"Sanctuary test markers: added {spawn.Name}, {alloy.Name}; removed {gone?.Name}");
 		}
 
+		/// -testlayers: layer 2 gets Winter's dirty_ground (with its sibling
+		/// normal/mask and the shipped maps' tint for it), layer 1's scale
+		/// doubles, and the texture picker opens on layer 2 for a screenshot.
+		public static void ApplyLayers()
+		{
+			if (!SanctuaryMapLoader.IsActive) return;
+			SanctuaryLayers.SetTexture(2, "Environment/Winter/Stratum/dirty_ground_albedo");
+			var ed = ScmapEditor.Current;
+			ed.Textures[1].AlbedoScale *= 2;
+			ed.SetTextures(1);
+			SanctuaryTexturePicker.Open(2);
+			Debug.Log($"Sanctuary test layers: layer 2 -> dirty_ground, layer 1 scale -> {ed.Textures[1].AlbedoScale}");
+		}
+
 		/// FA map coordinates (x, metres up, z from north) on the terrain, as the
 		/// Markers tool places them.
 		static Vector3 OnGround(float x, float z)

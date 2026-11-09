@@ -967,7 +967,10 @@ namespace EditMap
 		}
 
 		#region Select Texture
-
+		// Clicking a layer's albedo or normal opens the Sanctuary texture
+		// picker (the game's stratum textures, with tint).
+		public void ClickAlbedo() { Sanctuary.SanctuaryTexturePicker.Open(Selected); }
+		public void ClickNormal() { Sanctuary.SanctuaryTexturePicker.Open(Selected); }
 		#endregion
 
 

@@ -179,6 +179,8 @@ public partial struct GetGamedataFile
 				Debug.Log("Force mipmaps: " + LocalPath + " has " + ScmapEditor.Current.Textures[Id].Albedo.mipmapCount + " mipmaps");
 				ScmapEditor.Current.Textures[Id].Albedo = ConvertWithMipmaps(ScmapEditor.Current.Textures[Id].Albedo);
 			}
+			// The display copy carries the layer's tint (undo reloads by path).
+			Sanctuary.SanctuaryMapLoader.BakeLayer(Id);
 		}
 	}
 

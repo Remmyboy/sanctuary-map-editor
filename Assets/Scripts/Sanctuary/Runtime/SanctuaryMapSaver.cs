@@ -64,6 +64,7 @@ namespace Sanctuary
 				WriteMarkers(folder, report);
 				WriteArea(folder);
 				WriteWater(folder);
+				WriteLayerTiling(folder);
 
 				if (!inPlace) RenameForNewFolder(folder, targetDir);
 				folder.Save(inPlace ? null : targetDir);
@@ -311,6 +312,28 @@ namespace Sanctuary
 				(float)(old.X + old.Width) == r.width && (float)(size - old.Y) == r.height)
 				return;
 			doc.PlayableArea = new SanArea { X = r.x, Y = size - (double)r.height, Width = r.width - r.x, Height = r.height - r.y };
+		}
+
+		/// The Textures page's Scale is the layer's tileSize (metres per
+		/// repeat). Texture paths and tints are written by SanctuaryLayers as
+		/// they change; only a changed scale is written here, and the far
+		/// tiling keeps its ratio to the near one.
+		static void WriteLayerTiling(SanMapFolder folder)
+		{
+			var layers = folder.Map.StratumLayers;
+			var tex = ScmapEditor.Current.Textures;
+			if (layers == null) return;
+			for (int i = 0; i < Math.Min(layers.Count, tex.Length); i++)
+			{
+				if (!(layers[i] is JObject layer) || !(layer["tileSize"] is JObject ts)) continue;
+				double oldX = ts.Value<double?>("x") ?? 0;
+				float now = tex[i].AlbedoScale;
+				if (now <= 0 || (float)oldX == now) continue;
+				double ratio = oldX > 0 ? now / oldX : 1;
+				layer["tileSize"] = new JObject { ["x"] = (double)now, ["y"] = (double)now };
+				if (layer["tileSizeFar"] is JObject far)
+					layer["tileSizeFar"] = new JObject { ["x"] = Math.Round((far.Value<double?>("x") ?? now * 6) * ratio, 4), ["y"] = Math.Round((far.Value<double?>("y") ?? now * 6) * ratio, 4) };
+			}
 		}
 
 		static void WriteWater(SanMapFolder folder)

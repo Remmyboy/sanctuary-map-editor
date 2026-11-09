@@ -518,60 +518,51 @@ namespace Sanctuary
 		/// back on save are untouched: only the copies on screen change.
 		static void BakeDiffuseRemap(ScmapEditor ed, SanMapDocument m)
 		{
-			int n = Mathf.Min(SanMapDocument.StratumCount, ed.Textures.Length);
-			var remaps = new Color[n];
-			var means = new Color[n];
-			var use = new bool[n];
-			double lumBefore = 0, lumAfter = 0;
+			int n = Mathf.Min(SanMapDocument.StratumCount, ed.Textures.Length), baked = 0;
 			for (int i = 0; i < n; i++)
-			{
-				var tex = ed.Textures[i].Albedo;
-				var r = m.StratumLayers?[i]?["diffuseRemap"] as JObject;
-				if (tex == null || r == null || string.IsNullOrEmpty(m.GetStratumTexture(i, "albedo")) || !tex.isReadable) continue;
-				remaps[i] = new Color(r.Value<float>("r"), r.Value<float>("g"), r.Value<float>("b"), 1);
-				means[i] = MeanColor(tex);
-				use[i] = true;
-				lumBefore += Lum(means[i]);
-				lumAfter += Lum(means[i] * remaps[i]);
-			}
-			if (lumAfter <= 0) return;
+				if (BakeLayer(i)) baked++;
+			Debug.Log($"Sanctuary diffuseRemap baked into {baked} layers, gain {RemapGain:0.00}");
+		}
+
+		/// The layer's display albedo: the raw texture times its diffuseRemap,
+		/// in linear light, with the map's haze. Called on load, after a
+		/// texture or tint change, and when undo reloads a layer. Returns false
+		/// when the layer has no texture or remap to bake.
+		public static bool BakeLayer(int i)
+		{
+			var ed = ScmapEditor.Current;
+			var m = Folder?.Map;
+			if (m == null || i < 0 || i >= SanMapDocument.StratumCount || i >= ed.Textures.Length) return false;
+			var src = ed.Textures[i].Albedo;
+			var r = m.StratumLayers?[i]?["diffuseRemap"] as JObject;
+			if (src == null || r == null || string.IsNullOrEmpty(m.GetStratumTexture(i, "albedo")) || !src.isReadable) return false;
+			var remap = new Color(r.Value<float>("r"), r.Value<float>("g"), r.Value<float>("b"), 1);
 			// One gain for every map: normalising per map made light maps
 			// (Two Step Shuffle) 1.7x too bright against the game's preview.
-			float gain = RemapGain;
-			Color haze = HazeColor(m) * HazeBright;
+			Color k = remap * RemapGain;
+			Color hz = (HazeColor(m) * HazeBright).linear;
 			float h = Mathf.Clamp01(HazeLevel), keep = 1f - h;
-
-			for (int i = 0; i < n; i++)
+			// diffuseRemap is a linear-light multiplier (the game's editor
+			// stores colour.linear into it; the shader gets it as
+			// _DiffuseRemapScale), so the product is taken in linear and
+			// converted back. Multiplying sRGB values by it - the first
+			// version - crushed dark remaps: The Forge's sand (0.26) came
+			// out dark brown where the game draws it pale.
+			var px = src.GetPixels(0);
+			for (int p = 0; p < px.Length; p++)
 			{
-				if (!use[i]) continue;
-				var src = ed.Textures[i].Albedo;
-				Color k = remaps[i] * gain;
-				// diffuseRemap is a linear-light multiplier (the game's editor
-				// stores colour.linear into it; the shader gets it as
-				// _DiffuseRemapScale), so the product is taken in linear and
-				// converted back. Multiplying sRGB values by it - the first
-				// version - crushed dark remaps: The Forge's sand (0.26) came
-				// out dark brown where the game draws it pale.
-				var px = src.GetPixels(0);
-				Color hz = haze.linear;
-				for (int p = 0; p < px.Length; p++)
-				{
-					var c = px[p].linear;
-					var o = new Color(
-						c.r * k.r * keep + hz.r * h,
-						c.g * k.g * keep + hz.g * h,
-						c.b * k.b * keep + hz.b * h, 1f).gamma;
-					px[p] = new Color(Mathf.Clamp01(o.r), Mathf.Clamp01(o.g), Mathf.Clamp01(o.b), px[p].a);
-				}
-				var baked = new Texture2D(src.width, src.height, TextureFormat.RGBA32, true, false)
-				{
-					name = src.name + " (remap)", wrapMode = TextureWrapMode.Repeat, anisoLevel = 4, filterMode = FilterMode.Trilinear,
-				};
-				baked.SetPixels(px, 0);
-				baked.Apply(true);
-				ed.Textures[i].Albedo = baked;
+				var c = px[p].linear;
+				var o = new Color(c.r * k.r * keep + hz.r * h, c.g * k.g * keep + hz.g * h, c.b * k.b * keep + hz.b * h, 1f).gamma;
+				px[p] = new Color(Mathf.Clamp01(o.r), Mathf.Clamp01(o.g), Mathf.Clamp01(o.b), px[p].a);
 			}
-			Debug.Log($"Sanctuary diffuseRemap baked into {System.Linq.Enumerable.Count(use, u => u)} layers, gain {gain:0.00}");
+			var baked = new Texture2D(src.width, src.height, TextureFormat.RGBA32, true, false)
+			{
+				name = src.name + " (remap)", wrapMode = TextureWrapMode.Repeat, anisoLevel = 4, filterMode = FilterMode.Trilinear,
+			};
+			baked.SetPixels(px, 0);
+			baked.Apply(true);
+			ed.Textures[i].Albedo = baked;
+			return true;
 		}
 
 		static float Lum(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;

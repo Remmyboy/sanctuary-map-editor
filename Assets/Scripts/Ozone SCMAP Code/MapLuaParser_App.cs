@@ -78,6 +78,7 @@ public partial class MapLuaParser : MonoBehaviour
 			if (Args[i] == "-menusave") menuSave = true;
 			if (Args[i] == "-testedit") testEdit = true;
 			if (Args[i] == "-testmarkers") Sanctuary.SanctuaryTestEdit.ApplyMarkers();
+			if (Args[i] == "-testlayers") Sanctuary.SanctuaryTestEdit.ApplyLayers();
 			if (Args[i] == "-quit") quit = true;
 		}
 		if (testEdit) Sanctuary.SanctuaryTestEdit.Apply();

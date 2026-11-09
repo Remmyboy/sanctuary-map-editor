@@ -56,6 +56,8 @@ public static class StandaloneCleanup
 		Prefs + "PlayMap",
 		// Splash: the FA Forever logo.
 		UI + "Background/Logo",
+		// Textures: FA's "Upper" macro layer (Sanctuary has base + 8 layers).
+		Left + "Textures/field/Viewport/Pivot/Layers/StratumBttn",
 	};
 
 	/// Components whose scripts are deleted with this change: their objects go.
