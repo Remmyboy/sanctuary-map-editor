@@ -22,7 +22,9 @@ remote.
 | 3 | Save back: heightmap, stratum masks, markers, unedited fields kept | **done**: verified in game |
 | 3b | Save As, regenerated `preview.png`, New Map for Sanctuary | **done**: a new map plays in game |
 | 4 | Terrain rendering close to the game's `RTS/TerrainLit` | partly: layer colours calibrated against the game's previews; the game's shader source would make it exact |
-| 5 | Sanctuary prop library (`.santp`, `.sanmodel`): show and edit props | not started; props pass through saves untouched |
+| 5 | Sanctuary prop library (`.santp`, `.sanmodel`): show and edit props | **done**: show, paint, erase, save; the saved map plays in game |
+| 5b | Markers tool, texture layer picker | **done**: the saved map plays in game |
+| 7 | Release zip (`Tools~/package.ps1`) | **done**; not published |
 | 6a | Sanctuary-only: SupCom formats, FA install, FAF services and links removed from the product | **done** |
 | 6b | Delete the FA internals left behind (units, FA props/decals/lighting code, Lua libraries, HazardX scmap reader) | **done**: verified in game |
 
@@ -328,28 +330,53 @@ Checked:
   simulation ticks, and the commander and the AI start on their spawns
   (2026-11-09).
 
-## Phase 4 onwards: where the seams are
+## Markers, texture layers, props
 
-- **Load:** `MapLuaParser.LoadingFile` refuses anything without a
-  `version = 3` scenario `.lua` and an FA `env.scd`. Add a `.sanmap` branch
-  ahead of those checks that fills the editor's state from `SanMapFolder`.
-  `ScmapEditor.LoadHeights` builds the Unity terrain from `map.GetHeight`.
-  The Sanctuary version feeds `SanHeightmap.ToUnityHeights()` instead.
-- **World scale:** the editor works at 1/10 scale (`ScmapPosToWorld`,
-  `xRes / 10f`). Keep that inside the editor and convert at the format
-  boundary, so none of the brush and marker code changes.
-- **Markers:** map `Spawn` onto the editor's army markers and resource types
-  onto its mass markers. Write them back with
-  `SanMapDocument.SetMarkers`, which keeps any extra fields a marker had.
-- **FA coupling:** 77 of 240 scripts reference the SCMAP code or read FA game
-  files. The heaviest are `ScmapEditor.cs` (29 call sites), `ResourceBrowser`
-  (24), `FafEditorSettings` (19), `StratumInfo` (16), `UnitBrowser` (15),
-  `PropsInfo` (11) and the HazardX `Map.cs` (11).
-- **Shaders:** `Assets/GFX/Shaders/FaTerrainShader.shader` and
-  `FaWaterShader.shader` get Sanctuary counterparts in phase 4.
+- **Markers:** the Markers tab adds and deletes spawns and alloy spots. New
+  ones take the map's own naming (`Army_5` on a map that uses `Army_`,
+  `ARMY_9` on one that uses `ARMY_`), the lowest free number, compared without
+  case. Saving keeps the scenario's army list in step with the spawns.
+- **Texture layers:** clicking a layer's albedo or normal on the Textures tab
+  opens the picker: the game's stratum textures by biome, with thumbnails. A
+  pick sets the albedo with its sibling normal and mask, and the tint the
+  shipped maps use with it (or white). The sliders set the layer's tint
+  (`diffuseRemap`, linear). Scale is the layer's usual field.
+- **Props:** the **Props** button (top left) opens the panel. All props draw
+  instanced with their albedo, lit like the terrain (no normal maps or wind).
+  *Paint* scatters the chosen prop over a circle, on the ground, with random
+  turn; *Erase* removes every prop in the circle. The props list is rewritten
+  only when it changed, so an unedited map keeps its props byte for byte.
+- **Not yet:** undo for picker, tint and prop edits; a brush circle in the
+  view for the prop tools.
+
+Command line checks, each followed by `-menusave` or `-saveto`:
+`-testmarkers` (a spawn and an alloy spot added at the centre, one alloy spot
+removed), `-testlayers` (layer 2 to Winter `dirty_ground`, layer 1 scale
+doubled), `-testprops` (25 Highlands trees painted at the centre, every prop
+within 40 m of a point 120 m east erased).
+
+Checked: on Forge and Alpha 7 the marker files diff exactly as intended;
+the layer edit diffs exactly; Forge's 63,538 props load, and paint, erase and
+save diff exactly. All three edits saved together onto a copy of Two Step
+Shuffle start a skirmish against the AI with nothing in the game's log, and
+the new alloy spot is where it was put (2026-11-09). The new trees and the
+erased circle weren't found in the game's camera view; only the alloy spot was
+seen.
+
+## Release zip
+
+`Tools~/package.ps1 [-Version v0.1] [-NoBuild]` builds and writes
+`release\SanctuaryMapEditor-<version>-win64.zip` (about 93 MB): the exe, Unity's
+runtime, LICENSE.md and a short README.txt. Publishing it as a GitHub release
+is a separate step.
+
+## What's next
+
+- **Rendering:** layer colours are calibrated by eye against the game's own
+  previews (above); White Desert is still about 30% dark. Matching the game's
+  terrain and water shaders needs the game's shader code.
 - **Unity version:** 6000.3 LTS (6000.3.28f1), the same line the game is
-  built on (6000.3.22f1). The editor reads raw files today, but staying on
-  the game's line keeps it possible to load the game's own assets later.
+  built on (6000.3.22f1), so loading the game's own assets stays possible.
 
 ## Building
 
