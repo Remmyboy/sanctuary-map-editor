@@ -65,6 +65,38 @@ namespace Sanctuary
 			return index.Keys;
 		}
 
+		/// Stems that exist with the given extension (".santp", ...).
+		public static IEnumerable<string> StemsWithExtension(string ext)
+		{
+			EnsureLoaded();
+			foreach (var kv in index)
+				if (kv.Value.ContainsKey(ext)) yield return kv.Key;
+		}
+
+		/// A file by its exact path (extension included), or null.
+		public static byte[] ReadExact(string path)
+		{
+			if (string.IsNullOrEmpty(path)) return null;
+			path = path.Replace('\\', '/').TrimStart('/');
+			string ext = Path.GetExtension(path).ToLowerInvariant();
+			string stem = path.Substring(0, path.Length - ext.Length);
+			if (path.StartsWith("map/", StringComparison.OrdinalIgnoreCase))
+			{
+				var map = SanctuaryMapLoader.Folder;
+				string full = map == null ? null : Path.Combine(map.Directory, path.Substring(4));
+				return full != null && File.Exists(full) ? File.ReadAllBytes(full) : null;
+			}
+			EnsureLoaded();
+			if (!index.TryGetValue(stem, out var byExt) || !byExt.TryGetValue(ext, out var entry)) return null;
+			var bytes = new byte[entry.Value.Size];
+			using (var s = entry.Key.GetInputStream(entry.Value))
+			{
+				int read = 0;
+				while (read < bytes.Length) { int n = s.Read(bytes, read, bytes.Length - read); if (n <= 0) break; read += n; }
+			}
+			return bytes;
+		}
+
 		public static bool Exists(string stem)
 		{
 			EnsureLoaded();

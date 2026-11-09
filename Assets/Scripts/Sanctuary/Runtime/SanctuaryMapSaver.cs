@@ -28,11 +28,13 @@ namespace Sanctuary
 			public string BackupDir;
 			public string SavedTo;
 			public string Preview;
+			public int PropsWritten = -1;
 			public List<string> Problems = new List<string>();
 			public override string ToString() =>
 				$"saved {SavedTo}: {HeightCellsChanged} heightmap cells changed, {MarkersWritten} markers" +
 				(SkippedMarkers.Count > 0 ? $", {SkippedMarkers.Count} FA-only markers not saved ({string.Join(", ", SkippedMarkers.Take(5))})" : "") +
 				(BackupDir != null ? $"; backup in {BackupDir}" : "") +
+				(PropsWritten >= 0 ? $"; {PropsWritten} props written" : "") +
 				(Preview != null ? "; preview.png updated" : "");
 		}
 
@@ -65,11 +67,13 @@ namespace Sanctuary
 				WriteArea(folder);
 				WriteWater(folder);
 				WriteLayerTiling(folder);
+				if (SanctuaryProps.Dirty) { folder.Map.SetProps(SanctuaryProps.Groups()); report.PropsWritten = SanctuaryProps.Count; }
 
 				if (!inPlace) RenameForNewFolder(folder, targetDir);
 				folder.Save(inPlace ? null : targetDir);
 				if (!inPlace) FollowNewFolder(folder);
 				report.SavedTo = folder.Directory;
+				SanctuaryProps.MarkSaved();
 				report.Problems = folder.Validate();
 			}
 			catch (Exception e)

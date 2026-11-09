@@ -39,6 +39,8 @@ namespace Sanctuary
 
 		public static void Clear()
 		{
+			SanctuaryProps.Clear();
+			SanctuaryPropsPanel.Close();
 			Folder = null;
 			MarkerSourceType.Clear();
 			TerrainAtLoad = null;
@@ -256,6 +258,11 @@ namespace Sanctuary
 
 			Markers.MarkersControler.LoadMarkers();
 			yield return null;
+
+			parser.InfoPopup.Show(true, "Loading map...\n( props )");
+			yield return null;
+			SanctuaryProps.LoadFromMap(m);
+			SanctuaryPropsPanel.Ensure();
 
 			// ---- done ---------------------------------------------------
 			var problems = folder.Validate();

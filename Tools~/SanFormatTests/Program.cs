@@ -23,6 +23,7 @@ static class Program
 	static int Main(string[] args)
 	{
 		if (args.Length == 3 && args[0] == "--diff") return Diff(args[1], args[2]);
+		if (args.Length >= 1 && args[0] == "--props") return Props(args.Length > 1 ? args[1] : Path.Combine(Path.GetDirectoryName(DefaultMaps), "Gamedata"));
 
 		string mapsDir = DefaultMaps;
 		int textureMaps = 4;
@@ -206,6 +207,50 @@ static class Program
 			else if (!SameBytes(file, other)) Console.WriteLine($"{rel}: differs");
 		}
 		return 0;
+	}
+
+	/// --props [gamedata dir]: every prop blueprint in the game's packs,
+	/// with its first-LOD model and material, through SanProp's readers.
+	static int Props(string gamedata)
+	{
+		var entries = new Dictionary<string, System.IO.Compression.ZipArchiveEntry>(StringComparer.OrdinalIgnoreCase);
+		var zips = new List<System.IO.Compression.ZipArchive>();
+		foreach (var pack in Directory.GetFiles(gamedata, "*.sanpack"))
+		{
+			var z = System.IO.Compression.ZipFile.OpenRead(pack);
+			zips.Add(z);
+			foreach (var e in z.Entries) entries[e.FullName.TrimStart('/')] = e;
+		}
+		byte[] Bytes(string p)
+		{
+			if (!entries.TryGetValue(p, out var e)) return null;
+			using var s = e.Open(); using var ms = new MemoryStream(); s.CopyTo(ms); return ms.ToArray();
+		}
+		int ok = 0, fail = 0; long verts = 0, tris = 0;
+		foreach (var kv in entries.Where(k => k.Key.EndsWith(".santp", StringComparison.OrdinalIgnoreCase)).OrderBy(k => k.Key))
+		{
+			try
+			{
+				var bp = SanPropBlueprint.Parse(System.Text.Encoding.UTF8.GetString(Bytes(kv.Key)));
+				if (bp.ModelPath == null) throw new Exception("no model");
+				var mb = Bytes(bp.ModelPath) ?? throw new Exception("model missing: " + bp.ModelPath);
+				var model = SanModel.Read(mb, bp.ModelPath);
+				var mat = bp.MaterialPath != null && Bytes(bp.MaterialPath) is byte[] matb ? SanMaterial.Parse(System.Text.Encoding.UTF8.GetString(matb)) : null;
+				bool albedo = mat?.BaseColorMap != null && entries.ContainsKey(mat.BaseColorMap);
+				verts += model.VertexCount; tris += model.Triangles.Length / 3;
+				ok++;
+				if (ok <= 6 || !albedo)
+					Console.WriteLine($"  ok  {bp.TpId,-12} {model.VertexCount,6} verts {model.Triangles.Length / 3,6} tris  collider {bp.ColliderSizeX:0.0}x{bp.ColliderSizeY:0.0}x{bp.ColliderSizeZ:0.0}  scale {bp.ScaleMin}-{bp.ScaleMax}  {mat?.Shader}{(albedo ? "" : "  NO ALBEDO " + mat?.BaseColorMap)}");
+			}
+			catch (Exception e)
+			{
+				fail++;
+				Console.WriteLine($"  FAIL {kv.Key}: {e.Message}");
+			}
+		}
+		Console.WriteLine($"{ok} props read, {fail} failed; {verts:n0} vertices, {tris:n0} triangles in all");
+		foreach (var z in zips) z.Dispose();
+		return fail == 0 ? 0 : 1;
 	}
 
 	static void JsonDiffs(JToken a, JToken b, string path, List<string> outList)

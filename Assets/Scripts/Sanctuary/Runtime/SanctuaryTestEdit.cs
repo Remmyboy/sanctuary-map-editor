@@ -49,6 +49,22 @@ namespace Sanctuary
 			Debug.Log($"Sanctuary test layers: layer 2 -> dirty_ground, layer 1 scale -> {ed.Textures[1].AlbedoScale}");
 		}
 
+		/// -testprops: 25 Highlands trees painted in a 30 m circle at the map
+		/// centre, every prop within 40 m of a point 120 m east erased, the
+		/// Props panel opened, and the camera brought down to look at the
+		/// painted trees for a screenshot.
+		public static void ApplyProps()
+		{
+			if (!SanctuaryMapLoader.IsActive) return;
+			float c = SanctuaryMapLoader.Size / 2f;
+			int placed = SanctuaryProps.Paint("Environment/01_Highlands/Props/edbm0149/edbm0149.santp", c, c, 30, 25, new System.Random(1));
+			int erased = SanctuaryProps.Erase(c + 120, c, 40);
+			var world = new Vector3(c / 10f, 0, (c - SanctuaryMapLoader.Size) / 10f);
+			world.y = ScmapEditor.Current.Teren.SampleHeight(world);
+			CameraControler.FocusCamera(world, Quaternion.Euler(35, 0, 0), 3);
+			Debug.Log($"Sanctuary test props: painted {placed}, erased {erased}; {SanctuaryProps.Count} props now");
+		}
+
 		/// FA map coordinates (x, metres up, z from north) on the terrain, as the
 		/// Markers tool places them.
 		static Vector3 OnGround(float x, float z)
