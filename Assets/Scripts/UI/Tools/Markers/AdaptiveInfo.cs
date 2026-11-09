@@ -506,20 +506,15 @@ namespace EditMap
 				);
 		}
 
-		void ReplaceScript()
-		{
-			MapLuaParser.Current.SaveScriptLua(1, true);
-			NoScript();
-		}
+		// FAF "adaptive map" scripts (script.lua, tables.lua, options.lua)
+		// are SupCom scenario files; a Sanctuary map has none to write.
+		void ReplaceScript() { NoScript(); }
 
 		void NoScript()
 		{
 			if (MapLuaParser.Current.TablesLuaFile.IsLoaded)
 				return;
-
 			MapLuaParser.Current.TablesLuaFile.CreateDefault();
-			MapLuaParser.Current.SaveTablesLua();
-			MapLuaParser.Current.SaveOptionsLua();
 			OnEnable();
 		}
 

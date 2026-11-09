@@ -5,7 +5,6 @@ using Ozone.UI;
 using System.IO;
 using SFB;
 using FAF.MapEditor;
-using UI.Windows.Neroxis;
 using UnityEngine.Serialization;
 using Debug = UnityEngine.Debug;
 using Image = UnityEngine.UI.Image;
@@ -71,7 +70,6 @@ namespace EditMap
 		public UiTextField Blurriness;
 		public CanvasGroup ShaderTools;
 		public InputField ImagePathField;
-		public NeroxisProcessRunner neroxisRunner;
 
 		[Header("State")]
 		public bool Invert;
@@ -1109,63 +1107,9 @@ namespace EditMap
 	        }
         }
 
-        public async void GenerateMapInfoTexture()
-        {
-	        string toolsuiteArguments = "export-map-info --map-path=\"" + MapLuaParser.LoadedMapFolderPath + "\"";
-	        int exitcode = await neroxisRunner.invokeToolsuite(toolsuiteArguments);
-	        if (exitcode != 0) return;
-	        
-	        Undo.RegisterUndo(new UndoHistory.HistoryStratumChange(), new UndoHistory.HistoryStratumChange.StratumChangeHistoryParameter(9));
-                
-	        string texturePath = MapLuaParser.RelativeLoadedMapFolderPath + "env/layers/mapInfo.dds";
-	        ScmapEditor.Current.Textures[8].Albedo = GetGamedataFile.LoadTexture2D(texturePath, false, false, false);
-	        ScmapEditor.Current.Textures[8].AlbedoPath = texturePath;
-	        ScmapEditor.Current.Textures[8].AlbedoScale = MapLuaParser.Current.ScenarioLuaFile.Data.Size[0] + 1;
-            ScmapEditor.Current.SetTextures(8);
-            ReloadStratums();
-            SelectStratum(8);
-        }
-        
-        public async void GenerateMapNormalTexture()
-        {
-	        string toolsuiteArguments = "export-map-normals --map-path=\"" + MapLuaParser.LoadedMapFolderPath + "\"";
-	        int exitcode = await neroxisRunner.invokeToolsuite(toolsuiteArguments);
-	        if (exitcode != 0) return;
-	        
-	        Undo.RegisterUndo(new UndoHistory.HistoryStratumChange(), new UndoHistory.HistoryStratumChange.StratumChangeHistoryParameter(9));
-                
-	        string texturePath = MapLuaParser.RelativeLoadedMapFolderPath + "env/layers/mapNormal.dds";
-	        ScmapEditor.Current.Textures[8].Normal = GetGamedataFile.LoadTexture2D(texturePath, true, false, false);
-	        ScmapEditor.Current.Textures[8].NormalPath = texturePath;
-	        ScmapEditor.Current.Textures[8].NormalScale = MapLuaParser.Current.ScenarioLuaFile.Data.Size[0] + 1;
-	        ScmapEditor.Current.SetTextures(8);
-	        ReloadStratums();
-	        SelectStratum(8);
-        }
-        
-        public async void GenerateHeightRoughnessTexture()
-        {
-	        if (ImagePathField.text == "")
-	        {
-		        GenericInfoPopup.ShowInfo("You need to specify the directory that contains your source images.");
-		        return;
-	        }
-	        string toolsuiteArguments = "generate-pbr --in-path=\"" + ImagePathField.text + "\"" +
-	                                    " --out-path=\"" + MapLuaParser.LoadedMapFolderPath + "env/layers/\"";
-	        int exitcode = await neroxisRunner.invokeToolsuite(toolsuiteArguments);
-	        if (exitcode != 0) return;
-	        
-	        Undo.RegisterUndo(new UndoHistory.HistoryStratumChange(), new UndoHistory.HistoryStratumChange.StratumChangeHistoryParameter(9));
-                
-	        string texturePath = MapLuaParser.RelativeLoadedMapFolderPath + "env/layers/roughnessAndHeight.dds";
-	        ScmapEditor.Current.Textures[9].Albedo = GetGamedataFile.LoadTexture2D(texturePath, false, false, false);
-            ScmapEditor.Current.Textures[9].AlbedoPath = texturePath;
-            ScmapEditor.Current.Textures[9].AlbedoScale = MapLuaParser.Current.ScenarioLuaFile.Data.Size[0] + 1;
-            ScmapEditor.Current.SetTextures(9);
-            ReloadStratums();
-            SelectStratum(9);
-        }
-        
+        // FA terrain-shader texture generators (map info, normals, PBR via the
+        // Neroxis toolsuite) removed: Sanctuary maps carry no such textures.
+
         public void ResetRoughnessMask()
         {
 	        Color[] data = ScmapEditor.Current.map.TexturemapTex2.GetPixels();

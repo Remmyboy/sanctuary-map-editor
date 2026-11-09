@@ -105,7 +105,10 @@ namespace Sanctuary
 			var sc = MapLuaParser.Current.ScenarioLuaFile.Data;
 			string oldName = folder.Map.Name;
 			if (!string.IsNullOrEmpty(sc.name) && sc.name != oldName) return; // edited by hand: WriteScenario keeps it
-			string fresh = Path.GetFileName(Path.GetFullPath(targetDir).TrimEnd('\\', '/')).Replace('_', ' ');
+			string newFolder = Path.GetFileName(Path.GetFullPath(targetDir).TrimEnd('\\', '/'));
+			// Same folder name somewhere else (a copy, a backup): same map name.
+			if (string.Equals(newFolder, folder.FolderName, StringComparison.OrdinalIgnoreCase)) return;
+			string fresh = newFolder.Replace('_', ' ');
 			folder.Map.Name = fresh;
 			sc.name = fresh;
 		}
@@ -134,10 +137,23 @@ namespace Sanctuary
 
 		/// Copies the files an in-place save rewrites to
 		/// %LOCALAPPDATA%\SanctuaryMapEditor\Backups\<map>\<time>\.
+		public const string BackupPrefKey = "SanctuaryBackupPath";
+
+		/// Where backups go (Preferences): default
+		/// %LOCALAPPDATA%\SanctuaryMapEditor\Backups.
+		public static string BackupRoot
+		{
+			get
+			{
+				string p = PlayerPrefs.GetString(BackupPrefKey, "");
+				return !string.IsNullOrEmpty(p) ? p : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SanctuaryMapEditor", "Backups");
+			}
+			set { PlayerPrefs.SetString(BackupPrefKey, value); }
+		}
+
 		static string Backup(SanMapFolder folder)
 		{
-			string root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-				"SanctuaryMapEditor", "Backups", folder.FolderName, DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+			string root = Path.Combine(BackupRoot, folder.FolderName, DateTime.Now.ToString("yyyyMMdd-HHmmss"));
 			Directory.CreateDirectory(Path.Combine(root, SanMapFolder.TexturesDir));
 			File.Copy(folder.SanmapPath, Path.Combine(root, Path.GetFileName(folder.SanmapPath)), true);
 			foreach (var n in new[] { "heightmap.raw", "stratums_1_4.tga", "stratums_5_8.tga" })

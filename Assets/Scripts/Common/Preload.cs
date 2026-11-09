@@ -22,14 +22,9 @@ public class Preload : MonoBehaviour {
 		BrushGenerator.Current.LoadBrushes();
 		yield return null;
 
-		//Preload heavy gamedata files
-		//GetGamedataFile.GetZipFileInstance(GetGamedataFile.UnitsScd);
-		//yield return null;
-		//yield return null;
-		//GetGamedataFile.GetFAFZipFileInstance(GetGamedataFile.UnitsScd);
-
-		GetGamedataFile.LoadGamedata();
-		//yield return null;
+		// Index the game's .sanpack files while the splash shows, so the
+		// first map opens without the wait.
+		Sanctuary.SanGamedata.EnsureLoaded();
 
 		yield return null;
 		yield return null;

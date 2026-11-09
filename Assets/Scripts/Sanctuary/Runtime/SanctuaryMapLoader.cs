@@ -39,7 +39,6 @@ namespace Sanctuary
 
 		public static void Clear()
 		{
-			if (Folder != null) SanctuaryUi.ApplyMode(false);
 			Folder = null;
 			MarkerSourceType.Clear();
 			TerrainAtLoad = null;
@@ -88,6 +87,7 @@ namespace Sanctuary
 			parser.ScenarioFileName = folder.FolderName;
 			parser.FolderParentPath = Path.GetDirectoryName(folder.Directory).Replace('\\', '/') + "/";
 
+			LoadRecentMaps.MoveLastMaps(folder.FolderName, folder.FolderName, parser.FolderParentPath);
 			parser.InfoPopup.Show(true, "Loading map...\n(" + folder.FolderName + ")");
 			parser.EditMenu.gameObject.SetActive(true);
 			parser.Background.SetActive(false);
@@ -216,7 +216,6 @@ namespace Sanctuary
 			RenderMarkersConnections.Current.UpdateConnections();
 			parser.EditMenu.Categorys[0].GetComponent<EditMap.MapInfo>().UpdateFields();
 			parser.UpdateArea();
-			SanctuaryUi.ApplyMode(true);
 			LogMarkerFit();
 
 			string msg = $"Sanctuary map loaded: {folder.FolderName}\n{m.ArmyNames.Count} armies, {markers.Count} markers, {Size} m, {m.Height} m tall";

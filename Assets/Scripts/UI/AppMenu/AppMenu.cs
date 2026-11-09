@@ -185,61 +185,16 @@ public partial class AppMenu : MonoBehaviour
 			case "ShowMask":
 				ScmapEditor.Current.ToggleMaskView(MaskToggle.isOn);
 				break;
-			case "Discord":
-				Application.OpenURL("https://discord.gg/mXahVSKGVb");
-				break;
-			case "Forum":
-				Application.OpenURL("https://forum.faforever.com/category/12/mapping");
-				break;
-			case "Wiki":
-				Application.OpenURL("https://wiki.faforever.com/en/Development/Mapping");
-				break;
-			case "Gaea":
-				Application.OpenURL("https://wiki.faforever.com/en/Development/Mapping/Gaea");
-				break;
 			case "EditorLog":
 				ShowEditorLog();
 				break;
 			case "Shortcuts":
-				Application.OpenURL("https://wiki.faforever.com/en/Development/Mapping/FA-Forever-Map-Editor#useful-shortcuts");
-				break;
-			case "PlayMap":
-				if (MapLuaParser.IsMapLoaded)
-				{
-					string Arguments = "";
-					Arguments += "/map \"" + "/maps/" + MapLuaParser.Current.FolderName + "/" + MapLuaParser.Current.ScenarioFileName + ".lua" + "\"";
-					Arguments += " /faction " + (FafEditorSettings.GetFaction() + 1);
-					Arguments += " /victory sandbox";
-					Arguments += " /enablediskwatch";
-					Arguments += " /noAi";
-
-					if (!FafEditorSettings.GetFogOfWar())
-						Arguments += " /nofog";
-
-					string GamePath = EnvPaths.GetFafDataPath() + "bin/ForgedAlliance.exe";
-
-					if (!File.Exists(GamePath))
-					{
-						Debug.Log("Game executable does not exist at given path: " + GamePath + " Trying base game path.");
-						string OtherPath = EnvPaths.GetInstallationPath() + "bin/SupremeCommander.exe";
-						if (File.Exists(OtherPath))
-						{
-							GamePath = OtherPath;
-						}
-						else
-						{
-							Debug.LogWarning("Game executable does not exist at given path: " + GamePath +  "Aborting.");
-							return;
-						}
-					}
-					Debug.Log("Start game: " + GamePath);
-					Debug.Log("Args: " + Arguments);
-
-					System.Diagnostics.Process.Start(GamePath, Arguments);
-				}
+				Application.OpenURL(HelpUrl);
 				break;
 		}
 	}
+
+	public const string HelpUrl = "https://github.com/Remmyboy/sanctuary-map-editor/blob/sanctuary/README.md";
 
 	public void ToogleCurrentGrid()
 	{
@@ -374,13 +329,12 @@ public partial class AppMenu : MonoBehaviour
 			var extensions = new[]
 			{
 			new ExtensionFilter("Sanctuary map", "sanmap"),
-			new ExtensionFilter("SupCom scenario", "lua")
 		};
 
-			string startDir = Sanctuary.SanctuaryPaths.MapsDir ?? EnvPaths.GetMapsPath();
+			string startDir = Sanctuary.SanctuaryPaths.MapsDir ?? "";
 			var paths = StandaloneFileBrowser.OpenFilePanel("Open map", startDir, extensions, false);
 
-			if (paths.Length > 0 && (IsLuaFilePath(paths[0]) || Sanctuary.SanctuaryMapLoader.IsSanmapPath(paths[0])))
+			if (paths.Length > 0 && Sanctuary.SanctuaryMapLoader.IsSanmapPath(paths[0]))
 			{
 				StoreSelectedFile = paths[0];
 			}
@@ -396,36 +350,11 @@ public partial class AppMenu : MonoBehaviour
 		if (string.IsNullOrEmpty(path))
 			return;
 
-		if (Sanctuary.SanctuaryMapLoader.IsSanmapPath(path))
-		{
-			MapLuaParser.Current.StartCoroutine(Sanctuary.SanctuaryMapLoader.Load(path));
-			StoreSelectedFile = "";
-			return;
-		}
-
-		string[] PathSeparation = path.Replace("\\", "/").Replace(".lua", "").Split("/".ToCharArray());
-
-		MapLuaParser.Current.ScenarioFileName = PathSeparation[PathSeparation.Length - 1];
-		MapLuaParser.Current.FolderName = PathSeparation[PathSeparation.Length - 2];
-		string ParentPath = "";
-		for (int i = 0; i < PathSeparation.Length - 2; i++)
-		{
-			ParentPath += PathSeparation[i] + "/";
-		}
-
-		MapLuaParser.Current.FolderParentPath = ParentPath;
-		MapLuaParser.Current.LoadFile();
 		StoreSelectedFile = "";
-	}
-
-	bool IsScenarioPath(string path)
-	{
-		return path.EndsWith("scenario.lua");
-	}
-
-	bool IsLuaFilePath(string path)
-	{
-		return path.EndsWith(".lua");
+		if (Sanctuary.SanctuaryMapLoader.IsSanmapPath(path))
+			MapLuaParser.Current.StartCoroutine(Sanctuary.SanctuaryMapLoader.Load(path));
+		else
+			GenericInfoPopup.ShowInfo("Not a Sanctuary map:\n" + path);
 	}
 
 	static string StoreSelectedFile;
@@ -440,26 +369,9 @@ public partial class AppMenu : MonoBehaviour
 			return;
 
 
-		if (IsScenarioPath(aFiles[0]))
-		{
+		// A dropped .sanmap or map folder.
+		if (Sanctuary.SanctuaryMapLoader.IsSanmapPath(aFiles[0]))
 			StoreSelectedFile = aFiles[0];
-
-		}
-		else 
-		{
-			string[] AllFiles = System.IO.Directory.GetFiles(aFiles[0]);
-
-			for(int i = 0; i < AllFiles.Length; i++)
-			{
-				if (IsScenarioPath(AllFiles[i]))
-				{
-					StoreSelectedFile = AllFiles[i];
-					break;
-				}
-
-			}
-
-		}
 
 
 		if (!string.IsNullOrEmpty(StoreSelectedFile))
@@ -516,15 +428,13 @@ public partial class AppMenu : MonoBehaviour
 
 	public void OpenRecentMapNo()
 	{
-		ScmapEditor.Current.UnloadMap();
-		MapLuaParser.Current.ResetUI();
-
-		MapLuaParser.Current.ScenarioFileName = PlayerPrefs.GetString(LoadRecentMaps.ScenarioFile + LoadRecentMaps.RecentMapSelected, "");
-		MapLuaParser.Current.FolderName = PlayerPrefs.GetString(LoadRecentMaps.FolderPath + LoadRecentMaps.RecentMapSelected, "");
-		MapLuaParser.Current.FolderParentPath = PlayerPrefs.GetString(LoadRecentMaps.ParentPath + LoadRecentMaps.RecentMapSelected, "");
-
-
-		MapLuaParser.Current.LoadFile();
+		string folder = PlayerPrefs.GetString(LoadRecentMaps.FolderPath + LoadRecentMaps.RecentMapSelected, "");
+		string parent = PlayerPrefs.GetString(LoadRecentMaps.ParentPath + LoadRecentMaps.RecentMapSelected, "");
+		string dir = Path.Combine(parent, folder);
+		if (Sanctuary.SanctuaryMapLoader.IsSanmapPath(dir))
+			MapLuaParser.Current.StartCoroutine(Sanctuary.SanctuaryMapLoader.Load(dir));
+		else
+			GenericInfoPopup.ShowInfo("Not a Sanctuary map any more:\n" + dir);
 	}
 
 	#endregion

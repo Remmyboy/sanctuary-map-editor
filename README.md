@@ -1,15 +1,16 @@
 # Sanctuary Map Editor
 
-A fork of the [FA Forever Map Editor](https://github.com/FAForever/FAForeverMapEditor)
-(MIT, by ozonexo3 and the FAForever contributors) being ported to edit
-**Sanctuary: Shattered Sun** maps (`.sanmap`) natively. The upstream licence
-in `LICENSE.md` still applies; upstream is the `upstream` remote.
+A map editor for **Sanctuary: Shattered Sun**. It opens, edits, creates and
+saves the game's own `.sanmap` maps, and needs only the game installed.
 
-Why this editor: it already builds maps on Unity's own terrain system, as
-Sanctuary does, so the sculpting and painting brushes, marker tools, undo,
-camera and UI carry over. What has to change is everything that touches
-Supreme Commander's files: the map format, the terrain and water shaders, and
-the texture and prop libraries, which it reads from a Forged Alliance install.
+It began as a fork of the
+[FA Forever Map Editor](https://github.com/FAForever/FAForeverMapEditor)
+(MIT, by ozonexo3 and the FAForever contributors), whose terrain tools,
+brushes, marker tools and undo it keeps. The Supreme Commander side is gone:
+the editor no longer reads or writes SupCom maps or needs a Forged Alliance
+install, and FAF's vault upload, map generator and links are removed. The
+upstream licence in `LICENSE.md` still applies; upstream is the `upstream`
+remote.
 
 ## Status
 
@@ -19,10 +20,49 @@ the texture and prop libraries, which it reads from a Forged Alliance install.
 | 1b | Project on Unity 6000.3 LTS, headless build | **done**: compiles clean, builds, launches |
 | 2 | Open a `.sanmap` in the editor: terrain, water, markers, playable area | **done** (see below) |
 | 3 | Save back: heightmap, stratum masks, markers, unedited fields kept | **done**: verified in game |
-| 4 | Terrain rendering close to the game's `RTS/TerrainLit` (9 layers: albedo, normal, mask, tiling, `diffuseRemap`) | |
-| 5 | Sanctuary texture and prop libraries (`Environment.sanpack`, `.santp`, `.sanmodel`) | |
 | 3b | Save As, regenerated `preview.png`, New Map for Sanctuary | **done**: a new map plays in game |
-| 6 | Remove or hide FA-only tools: units, AI markers, Lua scenario scripts, FAF vault upload, Neroxis generator | started: Lighting, Props, Decals, Units tabs hidden on Sanctuary maps |
+| 4 | Terrain rendering close to the game's `RTS/TerrainLit` | partly: layer colours calibrated against the game's previews; the game's shader source would make it exact |
+| 5 | Sanctuary prop library (`.santp`, `.sanmodel`): show and edit props | not started; props pass through saves untouched |
+| 6a | Sanctuary-only: SupCom formats, FA install, FAF services and links removed from the product | **done** |
+| 6b | Delete the FA internals left behind (units, FA props/decals/lighting code, Lua libraries, HazardX scmap reader) | next |
+
+## Sanctuary-only (6a)
+
+What changed, so it can be reviewed:
+
+- **Scene:** `Assets/Editor/Scripts/StandaloneCleanup.cs` made the scene
+  changes, and it can be run again (`-executeMethod StandaloneCleanup.Run`).
+  - **Hidden:** the Lighting, Props, Decals and Units tabs; File > Save as new
+    version, Play map and Render; Tools > Resource browser, Unit browser and
+    Map uploader; the AI intel grid; FAF's Discord, forum, wiki and Gaea help
+    links; the map page's vault version, FA slot advice and scmap
+    version/shader; FA wave generators; the FA terrain-shader texture tools;
+    the FAF and FA folders and play-in-FA options in Preferences.
+  - **Destroyed:** the vault-upload and Neroxis objects.
+  - **Splash:** retitled, still crediting the original editor.
+  - Objects that scripts still reference are deactivated rather than
+    destroyed. `SceneTools.Dump` lists the scene, with each button's call.
+- **Deleted:** FAF vault upload (`UploadMapPopUp`, DotNetOpenAuth, log4net),
+  the Neroxis map generator and toolsuite runner, the stray Neroxis snapshot
+  map at the repo root.
+- **Code:**
+  - **Opening and saving:** File > Open, recent maps and drag-and-drop take
+    only `.sanmap`. The SupCom scenario/scmap loader and writer in
+    `MapLuaParser` are gone, and Save only writes Sanctuary maps.
+  - **Startup:** no longer scans for a Forged Alliance install. It indexes the
+    game's `.sanpack` files instead.
+  - **New Map:** always makes a Sanctuary map.
+  - **Preferences:** set the Sanctuary install folder and the backup folder.
+  - **Update check and Help:** both point at this repository.
+  - **Version:** v0.1.
+- **Checked after the change:**
+  - **Startup:** no exceptions; the splash is retitled.
+  - **Unedited saves:** Two Step Shuffle and The Forge come back identical
+    (JSON and every binary).
+  - **Test edit:** exactly the intended diff.
+  - **Save As and New Map:** both still work.
+  - **Not tested:** the game wasn't launched again for this change, which
+    doesn't touch what gets written.
 
 ## Phase 1: the format layer
 

@@ -1,14 +1,15 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
-using System.Text;
-using System.Runtime.InteropServices;
 using SFB;
 using Ozone.UI;
 
+/// Edit > Preferences. (Class name kept from the FAF editor: the scene binds
+/// to it.) Install folder of Sanctuary: Shattered Sun, backup folder, undo
+/// depth, 2D markers, UI scale. The FA install, FAF data folder, FA maps
+/// folder and "play in FA" options are gone; their fields are hidden in the
+/// scene and left unread.
 public class FafEditorSettings : MonoBehaviour
 {
-
 	public InputField PathField;
 	public InputField FafPathField;
 	public InputField MapsPathField;
@@ -27,13 +28,8 @@ public class FafEditorSettings : MonoBehaviour
 
 	void OnEnable()
 	{
-		PathField.text = EnvPaths.GetInstallationPath();
-		FafPathField.text = EnvPaths.GetFafDataPath();
-		MapsPathField.text = EnvPaths.GetMapsPath();
-		BackupPathField.text = EnvPaths.GetBackupPath();
-
-		PlayAs.value = GetFaction();
-		FogOfWar.isOn = GetFogOfWar();
+		PathField.text = Sanctuary.SanctuaryPaths.EngineDir ?? "";
+		BackupPathField.text = Sanctuary.SanctuaryMapSaver.BackupRoot;
 		Markers2D.isOn = GetMarkers2D();
 
 		UiScale.SetValue(GetUiScale());
@@ -44,7 +40,6 @@ public class FafEditorSettings : MonoBehaviour
 	{
 		UiScaler.UpdateUiScale();
 	}
-
 
 	public void Open()
 	{
@@ -60,51 +55,23 @@ public class FafEditorSettings : MonoBehaviour
 
 	public void Save()
 	{
-		if (string.IsNullOrEmpty(PathField.text))
+		if (!string.IsNullOrEmpty(PathField.text) && PathField.text != Sanctuary.SanctuaryPaths.EngineDir)
 		{
-			GenericInfoPopup.ShowInfo("Game installation path can't be empty!");
-		}
-		else
-		{
-			EnvPaths.SetInstallationPath(PathField.text);
+			Sanctuary.SanctuaryPaths.SetEngineDir(PathField.text);
+			if (Sanctuary.SanctuaryPaths.EngineDir == null)
+				GenericInfoPopup.ShowInfo("Not a Sanctuary: Shattered Sun install:\n" + PathField.text);
 		}
 
-        if (string.IsNullOrEmpty(FafPathField.text))
-        {
-            GenericInfoPopup.ShowInfo("FAF data path can't be empty!");
-        }
-        else
-        {
-            EnvPaths.SetFafDataPath(FafPathField.text);
-        }
-
-        if (string.IsNullOrEmpty(MapsPathField.text))
-		{
-			GenericInfoPopup.ShowInfo("Maps folder path can't be empty!");
-		}
-		else
-		{
-			EnvPaths.SetMapsPath(MapsPathField.text);
-		}
-
-		EnvPaths.SetBackupPath(BackupPathField.text);
+		if (!string.IsNullOrEmpty(BackupPathField.text))
+			Sanctuary.SanctuaryMapSaver.BackupRoot = BackupPathField.text;
 
 		PlayerPrefs.SetInt(UndoHistory, (int)HistorySlider.value);
 		if (History) History.MaxHistoryLength = (int)HistorySlider.value;
 
-		PlayerPrefs.SetInt("PlayMap_Faction", PlayAs.value);
-		PlayerPrefs.SetInt("PlayMap_FogOfWar", FogOfWar.isOn ? 1 : 0);
-
 		if (GetMarkers2D() != Markers2D.isOn)
 		{
-			if (Markers2D.isOn)
-			{
-
-			}
-			else
-			{
+			if (!Markers2D.isOn)
 				Markers.MarkersControler.ForceResetMarkers2D();
-			}
 			PlayerPrefs.SetInt("Markers_2D", Markers2D.isOn ? 1 : 0);
 		}
 
@@ -112,86 +79,33 @@ public class FafEditorSettings : MonoBehaviour
 
 		PlayerPrefs.Save();
 		gameObject.SetActive(false);
-
 	}
-
-	[DllImport("user32.dll")]
-	private static extern void SaveFileDialog(); //in your case : OpenFileDialog
 
 	public void BrowseGamedataPath()
 	{
-
-		var paths = StandaloneFileBrowser.OpenFolderPanel("Select Forged Alliance instalation path", EnvPaths.GetMapsPath(), false);
-
+		var paths = StandaloneFileBrowser.OpenFolderPanel("Select the Sanctuary: Shattered Sun install folder", PathField.text, false);
 		if (paths.Length > 0 && !string.IsNullOrEmpty(paths[0]))
-		{
 			PathField.text = paths[0];
-		}
-    }
-
-    public void BrowseFafDataPath()
-    {
-
-        var paths = StandaloneFileBrowser.OpenFolderPanel("Select Forged Alliance Forever data path", EnvPaths.GetFafDataPath(), false);
-
-        if (paths.Length > 0 && !string.IsNullOrEmpty(paths[0]))
-        {
-            FafPathField.text = paths[0];
-        }
-    }
-
-    public void BrowseMapPath()
-	{
-
-		var paths = StandaloneFileBrowser.OpenFolderPanel("Select 'Maps' folder.", EnvPaths.GetMapsPath(), false);
-
-		if (paths.Length > 0 && !string.IsNullOrEmpty(paths[0]))
-		{
-			MapsPathField.text = paths[0];
-		}
 	}
 
 	public void BrowseBackupPath()
 	{
-		var paths = StandaloneFileBrowser.OpenFolderPanel("Select backup 'Maps' folder.", EnvPaths.GetMapsPath(), false);
-
+		var paths = StandaloneFileBrowser.OpenFolderPanel("Select the folder for map backups", BackupPathField.text, false);
 		if (paths.Length > 0 && !string.IsNullOrEmpty(paths[0]))
-		{
 			BackupPathField.text = paths[0];
-		}
 	}
 
-
+	/// "Default": forget the saved path and find the game through Steam again.
 	public void ResetGamedata()
 	{
-		EnvPaths.GenerateGamedataPath();
-		PathField.text = EnvPaths.DefaultGamedataPath;
-	}
-    public void ResetFafData()
-    {
-        EnvPaths.GenerateFafDataPath();
-        FafPathField.text = EnvPaths.DefaultFafDataPath;
-    }
-
-    public void ResetMap()
-	{
-		EnvPaths.GenerateMapPath();
-		MapsPathField.text = EnvPaths.DefaultMapPath;
+		PlayerPrefs.DeleteKey("SanctuaryInstallPath");
+		PathField.text = Sanctuary.SanctuaryPaths.EngineDir ?? "";
 	}
 
 	public void ResetBackup()
 	{
-		BackupPathField.text = EnvPaths.DefaultMapPath.Replace("Maps/", "MapsBackup/");
-	}
-
-	public static int GetFaction()
-	{
-		return PlayerPrefs.GetInt("PlayMap_Faction", 0);
-	}
-
-	public static bool GetFogOfWar()
-	{
-		return PlayerPrefs.GetInt("PlayMap_FogOfWar", 1) == 1;
+		PlayerPrefs.DeleteKey(Sanctuary.SanctuaryMapSaver.BackupPrefKey);
+		BackupPathField.text = Sanctuary.SanctuaryMapSaver.BackupRoot;
 	}
 
 	public static bool GetMarkers2D()
