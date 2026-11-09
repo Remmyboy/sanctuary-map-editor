@@ -12,6 +12,61 @@ install, and FAF's vault upload, map generator and links are removed. The
 upstream licence in `LICENSE.md` still applies; upstream is the `upstream`
 remote.
 
+## Install
+
+You need Windows (64-bit) and Sanctuary: Shattered Sun installed through
+Steam. The Playtest works.
+
+1. Download `SanctuaryMapEditor-<version>-win64.zip` from the
+   [latest release](https://github.com/Remmyboy/sanctuary-map-editor/releases/latest).
+2. Unzip it into a folder of its own (for example
+   `Documents\SanctuaryMapEditor`). Keep everything in that folder together,
+   because the exe needs the files beside it.
+3. Run `SanctuaryMapEditor.exe`. The exe isn't signed, so Windows may show
+   "Windows protected your PC" the first time. Click **More info**, then
+   **Run anyway**.
+
+The editor finds the game through Steam. If it can't, open
+**Edit > Preferences** and set the game's install folder there.
+
+To update, download the new zip and replace the old folder; your settings are
+kept. To uninstall, delete the folder.
+
+## Using it
+
+- **Open a map:** **File > Open**, then pick a map's `.sanmap` file. The
+  game's maps are in its install folder under `engine\Sanctuary_Data\Maps`.
+- **Make a map:** **File > New Map** makes a blank map in the game's Maps
+  folder. **File > Save As** copies the open map to a new folder there.
+- **Save:** **File > Save** writes the map back. Before it overwrites
+  anything, it copies the files it rewrites to
+  `%LOCALAPPDATA%\SanctuaryMapEditor\Backups`.
+- **Play it:** restart the game after saving. The game reads maps when it
+  starts.
+
+What you can edit:
+
+- **Height:** Terrain tab, with brushes.
+- **Water:** Terrain tab > Water.
+- **Texture layers:** Textures tab. Paint a layer, or click a layer's texture
+  to pick another.
+- **Spawns and alloy spots:** Markers tab > Markers.
+  - Click **Spawn** or **Alloy**, then click on the map.
+  - Click the button again to go back to selecting markers.
+  - **Delete** removes the selected markers.
+- **Playable area:** Map tab > Areas. Type the edges, or drag a rectangle on
+  the map.
+- **Props:** the **Props** button at the top of the window.
+  - **Paint** and **Erase** work inside the brush circle. `[` and `]` resize
+    it.
+  - **Select** picks one prop to move, turn, scale, drop to the ground or
+    delete.
+
+**Ctrl+Z** undoes and **Ctrl+Y** redoes.
+
+Lighting, sky and decals are kept as they are; you can't edit them yet.
+Terrain colours are close to the game's, but not exact.
+
 ## Status
 
 | Phase | What | State |
@@ -25,7 +80,7 @@ remote.
 | 5 | Sanctuary prop library (`.santp`, `.sanmodel`): show and edit props | **done**: show, paint, erase, select/move/turn/scale/delete, undo; the saved map plays in game |
 | 5c | Playable area editor (type or drag), undo for the Sanctuary tools | **done**: the game reads the drawn area |
 | 5b | Markers tool, texture layer picker | **done**: the saved map plays in game |
-| 7 | Release zip (`Tools~/package.ps1`) | **done**; not published |
+| 7 | Release zip (`Tools~/package.ps1`) | **done**: published as GitHub releases |
 | 6a | Sanctuary-only: SupCom formats, FA install, FAF services and links removed from the product | **done** |
 | 6b | Delete the FA internals left behind (units, FA props/decals/lighting code, Lua libraries, HazardX scmap reader) | **done**: verified in game |
 
