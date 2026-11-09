@@ -444,7 +444,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Save map before exiting FAF map editor?
+  m_Text: Save map before exiting the map editor?
 --- !u!1 &1194959844641200152
 GameObject:
   m_ObjectHideFlags: 0
@@ -785,7 +785,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Exit FAF map editor
+  m_Text: Exit the map editor
 --- !u!1 &1194959845218006214
 GameObject:
   m_ObjectHideFlags: 0

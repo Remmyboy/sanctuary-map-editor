@@ -262,6 +262,73 @@ public static class StandaloneCleanup
 		Debug.Log($"SanctuaryMarkers: {off} deactivated, {text} relabelled");
 	}
 
+	/// Third pass, from clicking through every tab (-uitour): FA-only
+	/// controls still shown, and FA wording.
+	///   Unity.exe -batchmode -quit -projectPath . -executeMethod StandaloneCleanup.SanctuaryUiPass
+	static readonly string[] FaControlsShown =
+	{
+		// Map > General: FA army-ID renumbering and no-rush offsets.
+		Left + "Map/ToolPageGroup/Page_Map/field/Viewport/Pivot/Tools",
+		// Terrain > Water: FA water shader inputs (cubemap, ramp, wave normal
+		// maps) and its settings files. A .sanmap stores the elevations only.
+		Left + "Terrain/ToolPageGroup/Water/field/Pivot/Basic/WaterSettings/Light Settings",
+		Left + "Terrain/ToolPageGroup/Water/field/Pivot/Basic/WaterSettings/Materials",
+		Left + "Terrain/ToolPageGroup/Water/field/Pivot/Basic/WaterSettings/OceanWaves",
+		Left + "Terrain/ToolPageGroup/Water/field/Pivot/Tools",
+		Left + "Terrain/ToolPageGroup/Water/field/Pivot/Basic/WaterSettings/UseLightingSettingsToggle",
+		Left + "Terrain/ToolPageGroup/Water/field/Pivot/Basic/WaterSettings/AdvancedWaterToggle",
+		// Markers: FAF marker files and AI marker renaming.
+		Left + "Markers/ToolPageGroup/Markers/field/Pivot/BtnSmall",
+		Left + "Markers/ToolPageGroup/Markers/field/Pivot/BtnSmall (1)",
+		Left + "Markers/ToolPageGroup/Markers/field/Pivot/BtnSmall (2)",
+	};
+
+	/// Marker layer toggles for FA's AI path and zone markers.
+	static readonly string[] FaMarkerLayers =
+	{
+		"Paths", "Land path nodes", "Amphibious path nodes", "Naval path nodes", "Air path nodes", "All connections",
+		"AI", "Combat zone", "Defense point", "Expansion", "Protected experimental", "Rally point", "Other",
+		"Camera",
+	};
+
+	static readonly Dictionary<string, string> Rewords = new Dictionary<string, string>
+	{
+		{ "FAF map editor", "the map editor" },
+		{ "oGrid", "Grid" },
+	};
+
+	public static void SanctuaryUiPass()
+	{
+		var scene = EditorSceneManager.OpenScene("Assets/MapEditor.unity", OpenSceneMode.Single);
+		var all = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true)).ToList();
+		int off = 0, text = 0;
+		const string layers = Left + "Markers/ToolPageGroup/Layers/OptionGroup/LayersList/";
+		foreach (var t in all)
+		{
+			string p = PathOf(t);
+			bool hide = FaControlsShown.Contains(p);
+			if (!hide && p.StartsWith(layers) && p.IndexOf('/', layers.Length) < 0)
+			{
+				var label = t.GetComponentsInChildren<Text>(true).FirstOrDefault();
+				hide = label != null && FaMarkerLayers.Contains(label.text.Trim());
+			}
+			if (hide && t.gameObject.activeSelf) { t.gameObject.SetActive(false); Record(t.gameObject); off++; }
+			// Spawns are the editor's blank markers.
+			if (p == layers + "Blank/Label" && t.GetComponent<Text>() is Text blank && blank.text != "Spawns") { blank.text = "Spawns"; Record(blank); text++; }
+		}
+		foreach (var label in all.Select(t => t.GetComponent<Text>()).Where(l => l != null))
+		{
+			string before = label.text;
+			foreach (var kv in Rewords) label.text = label.text.Replace(kv.Key, kv.Value);
+			if (label.text != before) { Record(label); text++; }
+		}
+		foreach (var p in FaControlsShown)
+			if (!all.Any(t => PathOf(t) == p)) Debug.LogWarning("SanctuaryUiPass: not found " + p);
+		EditorSceneManager.MarkSceneDirty(scene);
+		EditorSceneManager.SaveScene(scene);
+		Debug.Log($"SanctuaryUiPass: {off} deactivated, {text} reworded");
+	}
+
 	/// Changes to objects inside a prefab instance are dropped on save
 	/// unless recorded as overrides (the splash Background is a prefab).
 	static void Record(Object o)

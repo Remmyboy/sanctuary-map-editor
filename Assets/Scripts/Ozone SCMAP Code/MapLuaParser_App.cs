@@ -97,6 +97,9 @@ public partial class MapLuaParser : MonoBehaviour
 		// The menu's own entry points, minus the dialogs.
 		if (saveAs != null) { AppMenu.SaveSanctuaryMapTo(saveAs); yield return null; while (SavingMapProcess) yield return null; }
 		if (menuSave) { SaveMap(); yield return null; while (SavingMapProcess) yield return null; }
+		for (int i = 1; i < Args.Length - 1; i++)
+			if (Args[i] == "-uitour")
+				yield return StartCoroutine(Sanctuary.SanctuaryUiTour.Run(Args[i + 1]));
 		if (shot != null)
 		{
 			for (int f = 0; f < 30; f++) yield return null;

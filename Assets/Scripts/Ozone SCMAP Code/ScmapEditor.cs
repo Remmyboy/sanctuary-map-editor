@@ -142,7 +142,7 @@ public partial class ScmapEditor : MonoBehaviour
 
 		// Load Stratum Textures Paths
 		LoadStratumScdTextures();
-		MapLuaParser.Current.InfoPopup.Show(true, "Loading map...\n( Assing scmap data )");
+		MapLuaParser.Current.InfoPopup.Show(true, "Loading map...");
 
 
 		WaterLevel.transform.localScale = new Vector3(HalfxRes, 1, HalfzRes);

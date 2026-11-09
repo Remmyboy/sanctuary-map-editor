@@ -363,6 +363,22 @@ the new alloy spot is where it was put (2026-11-09). The new trees and the
 erased circle weren't found in the game's camera view; only the alloy spot was
 seen.
 
+## Clicking through the UI
+
+`SanctuaryMapEditor.exe -sanmap <map> -uitour <out dir> -quit` opens each
+tab and menu, presses every button and toggle that doesn't open a file
+dialog, a browser or quit, and writes `tour.txt` (each press, and any
+exception or error it caused), a screenshot of every page, and `texts.txt`
+(every UI text in the scene, shown or hidden). Nothing is saved. Its first
+run found the Markers tab broken (a page deleted with the FA code) and the
+Props button covering File > Open; it now passes with no problems.
+
+FA-only controls still shown after 6a/6b were hidden by
+`StandaloneCleanup.SanctuaryUiPass` and `ToolPage`: Map > Armies (FA teams,
+factions, colours, AI plans), Markers > Chains and the AI marker layers,
+FAF marker import/export, Terrain > Type (FA terrain types), FA water
+shader inputs, and Textures > Tools (FA stratum templates).
+
 ## Release zip
 
 `Tools~/package.ps1 [-Version v0.1] [-NoBuild]` builds and writes

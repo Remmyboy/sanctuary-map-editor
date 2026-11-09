@@ -33,6 +33,12 @@ public class ToolTabGroup : MonoBehaviour
         rootPage.ChangePage(tabIndex);
     }
 
+    public void SetTabVisible(int tabIndex, bool visible)
+    {
+        if (tabIndex >= 0 && tabIndex < tabs.Count)
+            tabs[tabIndex].gameObject.SetActive(visible);
+    }
+
     public void SetSelectedTab(int tabIndex)
     {
         for (int i = 0; i < tabs.Count; i++)

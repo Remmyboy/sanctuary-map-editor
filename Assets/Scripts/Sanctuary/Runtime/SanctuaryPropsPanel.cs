@@ -25,6 +25,10 @@ namespace Sanctuary
 		float nextStroke;
 		bool overUi;
 
+		// The opener sits in the middle of the menu bar, clear of the menus'
+		// drop-downs (IMGUI draws over them and would take their clicks).
+		static Rect Opener => new Rect(Screen.width / 2f - 75, 3, 150, 22);
+
 		public static void Ensure()
 		{
 			if (current == null) current = new GameObject("SanctuaryPropsPanel").AddComponent<SanctuaryPropsPanel>();
@@ -38,8 +42,7 @@ namespace Sanctuary
 		void OnGUI()
 		{
 			if (!SanctuaryMapLoader.IsActive) return;
-			// The opener sits in the tool-tab row's free second line.
-			if (GUI.Button(new Rect(8, 62, 150, 22), $"Props ({SanctuaryProps.Count:n0})" + (SanctuaryProps.Dirty ? " *" : "")))
+			if (GUI.Button(Opener,$"Props ({SanctuaryProps.Count:n0})" + (SanctuaryProps.Dirty ? " *" : "")))
 			{
 				open = !open;
 				if (open && catalog == null)
@@ -94,7 +97,7 @@ namespace Sanctuary
 			// IMGUI windows are invisible to the editor's pointer events.
 			var mouse = Input.mousePosition;
 			var gui = new Vector2(mouse.x, Screen.height - mouse.y);
-			bool inside = (open && window.Contains(gui)) || new Rect(8, 62, 150, 22).Contains(gui);
+			bool inside = (open && window.Contains(gui)) || Opener.Contains(gui);
 			if (inside) { edit.MauseOnGameplay = false; overUi = true; return; }
 			if (overUi)
 			{

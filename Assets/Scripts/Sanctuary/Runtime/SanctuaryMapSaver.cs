@@ -32,7 +32,7 @@ namespace Sanctuary
 			public List<string> Problems = new List<string>();
 			public override string ToString() =>
 				$"saved {SavedTo}: {HeightCellsChanged} heightmap cells changed, {MarkersWritten} markers" +
-				(SkippedMarkers.Count > 0 ? $", {SkippedMarkers.Count} FA-only markers not saved ({string.Join(", ", SkippedMarkers.Take(5))})" : "") +
+				(SkippedMarkers.Count > 0 ? $", {SkippedMarkers.Count} markers of types a Sanctuary map can't hold, not saved ({string.Join(", ", SkippedMarkers.Take(5))})" : "") +
 				(BackupDir != null ? $"; backup in {BackupDir}" : "") +
 				(PropsWritten >= 0 ? $"; {PropsWritten} props written" : "") +
 				(Preview != null ? "; preview.png updated" : "");

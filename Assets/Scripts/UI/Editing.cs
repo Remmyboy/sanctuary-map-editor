@@ -96,32 +96,25 @@ namespace EditMap
 		}
 
 		int CurrentCategory = 0;
+		// Categorys/CategorysSelected keep FA's slots; the panels for the removed
+		// ones (lighting, decals, FA props, AI) are gone, so their entries are
+		// null and are skipped.
 		public void ChangeCategory(int id = 0)
 		{
-			if (id == CurrentCategory)
+			GameObject panel = id < Categorys.Length ? Categorys[id] : null;
+			if (id == CurrentCategory && panel != null && panel.activeSelf)
 			{
-				if(!Categorys[id].activeSelf)
-					Categorys[id].SetActive(true);
-				if (!CategorysSelected[id].activeSelf)
-					CategorysSelected[id].SetActive(true);
+				if (id < CategorysSelected.Length && CategorysSelected[id] != null) CategorysSelected[id].SetActive(true);
 				return;
-
 			}
-
-
 			foreach (GameObject obj in Categorys)
-			{
-				obj.SetActive(false);
-			}
-
+				if (obj != null) obj.SetActive(false);
 			foreach (GameObject obj in CategorysSelected)
-			{
-				obj.SetActive(false);
-			}
+				if (obj != null) obj.SetActive(false);
 			CurrentCategory = id;
 
-			CategorysSelected[id].SetActive(true);
-			Categorys[id].SetActive(true);
+			if (id < CategorysSelected.Length && CategorysSelected[id] != null) CategorysSelected[id].SetActive(true);
+			if (id < Categorys.Length && Categorys[id] != null) Categorys[id].SetActive(true);
 		}
 
 		public void ChangePointerInGameplay(bool on = true)
