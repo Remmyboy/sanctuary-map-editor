@@ -23,7 +23,6 @@ public class GenerateControlTex : MonoBehaviour
 		NormalCoroutine = null;
 		WaterCoroutine = null;
 
-		EditMap.WavesRenderer.ClearShoreLine();
 	}
 
 	#region Water

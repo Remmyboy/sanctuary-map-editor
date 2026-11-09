@@ -33,7 +33,7 @@ namespace Ozone.UI
         
         public float GetScale()
         {
-            float scale = LuaParser.Read.StringToFloat(Scale.text);
+            float scale = TextNumbers.StringToFloat(Scale.text);
             if (scale != 0)
                 scale = 1 / scale;
             return scale;
@@ -48,8 +48,8 @@ namespace Ozone.UI
 
         public Vector2 GetMovement()
         {
-            float angle = LuaParser.Read.StringToFloat(Angle.text) * -1 * Mathf.Deg2Rad;
-            float speed = LuaParser.Read.StringToFloat(Speed.text);
+            float angle = TextNumbers.StringToFloat(Angle.text) * -1 * Mathf.Deg2Rad;
+            float speed = TextNumbers.StringToFloat(Speed.text);
             var movement = new Vector2(Mathf.Sin(angle), Mathf.Cos(angle));
             return movement * speed;
         }

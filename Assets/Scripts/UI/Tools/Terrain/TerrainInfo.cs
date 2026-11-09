@@ -704,7 +704,6 @@ namespace EditMap
 		{
 			GenerateControlTex.GenerateWater();
 			GenerateControlTex.GenerateNormal();
-			WavesRenderer.ClearShoreLine();
 
 		}
 
@@ -1034,9 +1033,6 @@ namespace EditMap
 		public void OnTerrainChanged()
 		{
 			Markers.MarkersControler.UpdateMarkersHeights();
-			PropsRenderer.Current.UpdatePropsHeights();
-			UnitsControler.UpdateUnitsHeights();
-			DecalsControler.UpdateDecals();
 
 			if (ScmapEditor.Current.Slope)
 				GenerateControlTex.Current.GenerateSlopeTexture();

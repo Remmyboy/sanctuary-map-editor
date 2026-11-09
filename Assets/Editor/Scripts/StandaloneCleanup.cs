@@ -147,6 +147,51 @@ public static class StandaloneCleanup
 		}
 	}
 
+	/// Second step: the FA systems themselves. Run before their scripts are
+	/// deleted (objects are matched by component type name):
+	///   Unity.exe -batchmode -quit -projectPath . -executeMethod StandaloneCleanup.RemoveFaSystems
+	/// Destroys every object that exists only to host an FA system, and
+	/// strips the FA decal renderer off the two cameras.
+	static readonly string[] FaSystemHosts =
+	{
+		"UnitsInfo", "UnitsControler", "UnitBrowser",
+		"PropsInfo", "PropsRenderer",
+		"DecalsInfo", "DecalsControler", "OzoneDecal",
+		"ResourceBrowser", "LightingInfo", "AdaptiveInfo", "WavesRenderer",
+	};
+	static readonly string[] FaComponentsOnly = { "OzoneDecalRenderer" };
+
+	public static void RemoveFaSystems()
+	{
+		foreach (var path in new[] { "Assets/MapEditor.unity", "Assets/Preload.unity" })
+		{
+			var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+			int objects = 0, comps = 0;
+			var all = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true)).ToList();
+			foreach (var t in all)
+			{
+				if (t == null) continue;
+				var behaviours = t.GetComponents<MonoBehaviour>().Where(c => c != null).ToList();
+				if (behaviours.Any(c => FaSystemHosts.Contains(c.GetType().Name)))
+				{
+					Debug.Log("RemoveFaSystems: destroy " + PathOf(t));
+					Object.DestroyImmediate(t.gameObject);
+					objects++;
+					continue;
+				}
+				foreach (var c in behaviours.Where(c => FaComponentsOnly.Contains(c.GetType().Name)))
+				{
+					Debug.Log("RemoveFaSystems: strip " + c.GetType().Name + " from " + PathOf(t));
+					Object.DestroyImmediate(c);
+					comps++;
+				}
+			}
+			EditorSceneManager.MarkSceneDirty(scene);
+			EditorSceneManager.SaveScene(scene);
+			Debug.Log($"RemoveFaSystems {path}: {objects} objects destroyed, {comps} components stripped");
+		}
+	}
+
 	/// Changes to objects inside a prefab instance are dropped on save
 	/// unless recorded as overrides (the splash Background is a prefab).
 	static void Record(Object o)

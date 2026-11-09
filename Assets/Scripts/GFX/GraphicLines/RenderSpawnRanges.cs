@@ -45,15 +45,35 @@ public class RenderSpawnRanges : MonoBehaviour
 						Vector3 pos = ArmyMarker.MarkerObj.transform.localPosition;
 						for (int i = 0; i < UtilityRanges.Length; i++)
 						{
-							RenderUnitRanges.DrawDottedCircle(pos, UtilityRanges[i], BuildRangeColor);
+							DrawDottedCircle(pos, UtilityRanges[i], BuildRangeColor);
 						}
 						for (int i = 0; i < AtackRanges.Length; i++)
 						{
-							RenderUnitRanges.DrawDottedCircle(pos, AtackRanges[i], AttackRangeColor);
+							DrawDottedCircle(pos, AtackRanges[i], AttackRangeColor);
 						}
 					}
 				}
 			}
 		}
+	}
+
+	static readonly float DoublePI = 2 * Mathf.PI;
+
+	/// Dotted ring on the ground (moved here from the FA unit-range renderer).
+	public static void DrawDottedCircle(Vector3 center, float radius, Color col)
+	{
+		if (radius <= 0)
+			return;
+		GL.PushMatrix();
+		GL.Begin(GL.LINES);
+		GL.Color(col);
+		int steps = Mathf.RoundToInt((DoublePI * radius) * 10f);
+		if (steps < 12) steps = 12;
+		else if (steps % 4 != 0) steps += 4 - (steps % 4);
+		float step = Mathf.Clamp((2f * Mathf.PI) / steps, 0.005f, 0.1f);
+		for (float theta = 0.0f; theta < DoublePI; theta += step)
+			GL.Vertex3(Mathf.Cos(theta) * radius + center.x, center.y, Mathf.Sin(theta) * radius + center.z);
+		GL.End();
+		GL.PopMatrix();
 	}
 }

@@ -116,7 +116,7 @@ namespace Ozone.UI
 			if (InputFieldUi.contentType == InputField.ContentType.IntegerNumber)
 				SliderUi.value = int.Parse(InputFieldUi.text);
 			if (InputFieldUi.contentType == InputField.ContentType.DecimalNumber)
-				LastValue = LuaParser.Read.StringToFloat(InputFieldUi.text);
+				LastValue = TextNumbers.StringToFloat(InputFieldUi.text);
 
 			//SliderUi.value = LastValue;
 
@@ -138,7 +138,7 @@ namespace Ozone.UI
 			if (InputFieldUi.contentType == InputField.ContentType.IntegerNumber)
 				SliderUi.value = int.Parse(InputFieldUi.text);
 			if (InputFieldUi.contentType == InputField.ContentType.DecimalNumber)
-				LastValue = LuaParser.Read.StringToFloat(InputFieldUi.text);
+				LastValue = TextNumbers.StringToFloat(InputFieldUi.text);
 
 			//SliderUi.value = LastValue;
 
@@ -155,11 +155,11 @@ namespace Ozone.UI
 			HasValue = true;
 			if (InputFieldUi.contentType == InputField.ContentType.IntegerNumber)
 			{
-				LastValue = LuaParser.Read.StringToInt(InputFieldUi.text, (int)LastValue);
+				LastValue = TextNumbers.StringToInt(InputFieldUi.text, (int)LastValue);
 			}
 			else if (InputFieldUi.contentType == InputField.ContentType.DecimalNumber)
 			{
-				LastValue = LuaParser.Read.StringToFloat(InputFieldUi.text, LastValue);
+				LastValue = TextNumbers.StringToFloat(InputFieldUi.text, LastValue);
 			}
 
 			if (SliderUi)

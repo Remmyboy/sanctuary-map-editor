@@ -10,7 +10,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using NLua;
 
 namespace MapLua
 {
@@ -19,7 +18,6 @@ namespace MapLua
 	{
 
 		public Scenario Data = new Scenario();
-		Lua LuaFile;
 
 		#region Area controls
 		public int DisplayAreaId = 0;
@@ -106,7 +104,6 @@ namespace MapLua
 		public void Unload()
 		{
 			ClearMarkersDictionary();
-			EditMap.UnitsInfo.UnloadUnits();
 			Data = new Scenario();
 
 		}
@@ -289,43 +286,6 @@ namespace MapLua
 		}
 
 
-		public IEnumerator LoadUnits()
-		{
-			var ListEnum = UnitsToLoad.GetEnumerator();
-
-			int count = UnitsToLoad.Count;
-			int counter = 1;
-			int BreakCounter = 0;
-
-			MapLuaParser.Current.InfoPopup.Show(true, "Loading map...\n( Loading units " + counter + "/" + count + ")");
-			yield return null;
-
-			bool NeedReload = false;
-			while (ListEnum.MoveNext())
-			{
-				NeedReload = !GetGamedataFile.IsUnitSourceLoaded(ListEnum.Current.type);
-
-				ListEnum.Current.Instantiate();
-				counter++;
-				BreakCounter++;
-
-				if (BreakCounter > 100)
-				{
-					BreakCounter = 0;
-					NeedReload = true;
-				}
-
-				if (NeedReload)
-				{
-					MapLuaParser.Current.InfoPopup.Show(true, "Loading map...\n( Loading units " + counter + "/" + count + ")");
-					yield return null;
-				}
-			}
-			ListEnum.Dispose();
-
-			yield return null;
-		}
-		
 		public void Save(string Path)
 		{
 			LuaParser.Creator LuaFile = new LuaParser.Creator();

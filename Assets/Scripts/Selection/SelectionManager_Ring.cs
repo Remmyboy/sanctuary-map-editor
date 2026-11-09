@@ -73,16 +73,6 @@ namespace Selection
 						Selection.SelectionRings[i].transform.localScale = AffectedGameObjects[ID].transform.localScale;
 						Selection.SelectionRings[i].transform.localRotation = AffectedGameObjects[ID].transform.localRotation;
 					}
-					else if(LastControlType == SelectionControlTypes.Units)
-					{
-						Selection.SelectionRings[i].transform.localScale = AffectedGameObjects[ID].GetComponent<UnitInstance>().UnitRenderer.BP.SkirtSize;
-						Selection.SelectionRings[i].transform.localRotation = AffectedGameObjects[ID].transform.localRotation;
-					}
-					else if (LastControlType == SelectionControlTypes.Props)
-					{
-						Selection.SelectionRings[i].transform.localScale = AffectedGameObjects[ID].GetComponent<PropGameObject>().Col.bounds.size;
-						Selection.SelectionRings[i].transform.localRotation = AffectedGameObjects[ID].transform.localRotation;
-					}
 					else
 					{
 						MeshRenderer Mr = AffectedGameObjects[ID].GetComponent<MeshRenderer>();
@@ -128,16 +118,6 @@ namespace Selection
 				if (LastControlType == SelectionControlTypes.Decal)
 				{
 					Sel.SelectionRings[i].transform.localScale = AffectedGameObjects[ID].transform.localScale;
-					Sel.SelectionRings[i].transform.localRotation = AffectedGameObjects[ID].transform.localRotation;
-				}
-				else if (LastControlType == SelectionControlTypes.Units)
-				{
-					Sel.SelectionRings[i].transform.localScale = AffectedGameObjects[ID].GetComponent<UnitInstance>().UnitRenderer.BP.SkirtSize;
-					Sel.SelectionRings[i].transform.localRotation = AffectedGameObjects[ID].transform.localRotation;
-				}
-				else if (LastControlType == SelectionControlTypes.Props)
-				{
-					Sel.SelectionRings[i].transform.localScale = AffectedGameObjects[ID].GetComponent<PropGameObject>().Col.bounds.size;
 					Sel.SelectionRings[i].transform.localRotation = AffectedGameObjects[ID].transform.localRotation;
 				}
 				else

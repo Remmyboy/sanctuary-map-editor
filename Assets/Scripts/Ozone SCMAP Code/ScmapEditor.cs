@@ -8,7 +8,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityStandardAssets.ImageEffects;
 //using UnityEngine.PostProcessing;
-using FAF.MapEditor;
 
 public partial class ScmapEditor : MonoBehaviour
 {
@@ -21,8 +20,6 @@ public partial class ScmapEditor : MonoBehaviour
 	[System.NonSerialized]
 	public TerrainData Data;
 	public Transform WaterLevel;
-	public ResourceBrowser ResBrowser;
-	public UnitBrowser UnBrowser;
 	public Light Sun;
 	public ProceduralSkybox Skybox;
 	public Material TerrainMaterial;
@@ -63,7 +60,6 @@ public partial class ScmapEditor : MonoBehaviour
 	void Awake()
 	{
 		Current = this;
-		ResBrowser.Instantiate();
 		Data = Teren.terrainData;
 		EnvPaths.CurrentGamedataPath = EnvPaths.GamedataPath;
 	}
@@ -71,7 +67,6 @@ public partial class ScmapEditor : MonoBehaviour
 
 	void Start()
 	{
-		UnBrowser.Instantiate();
 
 		Grid = false;
 		UpdateGrid();
@@ -105,27 +100,6 @@ public partial class ScmapEditor : MonoBehaviour
         Shader.SetGlobalVector("SpecularColor", map.SpecularColor);
 	}
 
-
-	public IEnumerator LoadScmapFile()
-	{
-		map = new Map();
-
-		//string MapPath = EnvPaths.GetMapsPath();
-		string path = MapLuaParser.MapRelativePath(MapLuaParser.Current.ScenarioLuaFile.Data.map);
-
-		if (map.Load(path))
-		{
-			UpdateLighting();
-		}
-		else
-		{
-			Debug.LogWarning("File not found!\n" + path);
-			yield break;
-		}
-
-		ApplyLoadedMap();
-		yield return null;
-	}
 
 	/// Builds the terrain, water and materials from `map`. Shared by the FA
 	/// .scmap loader above and Sanctuary.SanctuaryMapLoader.
@@ -205,7 +179,6 @@ public partial class ScmapEditor : MonoBehaviour
 
 		SetTextures();
 
-		EditMap.WavesRenderer.ReloadWaves();
 
 		if (Slope)
 		{
@@ -712,106 +685,6 @@ public partial class ScmapEditor : MonoBehaviour
 	//public const double RoundingError = 0.5;
 	public const float MaxElevation = 256;
 
-	public void SaveScmapFile()
-	{
-		float LowestElevation = ScmapEditor.MaxElevation;
-		float HighestElevation = 0;
-
-		if (Teren)
-		{
-			heights = Teren.terrainData.GetHeights(0, 0, Teren.terrainData.heightmapResolution, Teren.terrainData.heightmapResolution);
-			heightsLength = heights.GetLength(0);
-
-			int y = 0;
-			int x = 0;
-			for (y = 0; y < map.Width + 1; y++)
-			{
-				for (x = 0; x < map.Height + 1; x++)
-				{
-					float Height = heights[x, y];
-
-					LowestElevation = Mathf.Min(LowestElevation, Height);
-					HighestElevation = Mathf.Max(HighestElevation, Height);
-
-					//double HeightValue = ((double)Height) * HeightResize;
-					//map.SetHeight(y, map.Height - x, (short)(HeightValue + RoundingError));
-					map.SetHeight(y, map.Height - x, (ushort)(Height * HeightResize));
-				}
-			}
-		}
-
-		LowestElevation = (LowestElevation * TerrainHeight) / 0.1f;
-		HighestElevation = (HighestElevation * TerrainHeight) / 0.1f;
-
-
-		if (MapLuaParser.Current.EditMenu.MapInfoMenu.SaveAsFa.isOn)
-		{
-			if(map.AdditionalSkyboxData == null || map.AdditionalSkyboxData.Data == null || map.AdditionalSkyboxData.Data.Position.x == 0)
-			{ // Convert to v60
-				LoadDefaultSkybox();
-			}
-
-			map.VersionMinor = 60;
-			map.AdditionalSkyboxData.Data.UpdateSize();
-		}
-		else if(map.VersionMinor >= 60) // Convert to v56
-		{
-			LoadDefaultSkybox();
-			map.AdditionalSkyboxData.Data.UpdateSize();
-			map.VersionMinor = 56;
-		}
-
-		//Debug.Log("Set Heightmap to map " + map.Width + ", " + map.Height);
-
-		//string MapPath = EnvPaths.GetMapsPath();
-		string path = MapLuaParser.MapRelativePath(MapLuaParser.Current.ScenarioLuaFile.Data.map);
-
-		map.TerrainShader = MapLuaParser.Current.EditMenu.MapInfoMenu.ShaderName.text;
-
-		map.MinimapContourColor = new Color32(0, 0, 0, 255);
-		map.MinimapDeepWaterColor = new Color32(71, 140, 181, 255);
-		map.MinimapShoreColor = new Color32(141, 200, 225, 255);
-		map.MinimapLandStartColor = new Color32(119, 101, 108, 255);
-		map.MinimapLandEndColor = new Color32(206, 206, 176, 255);
-		//map.MinimapLandEndColor = new Color32 (255, 255, 215, 255);
-		map.MinimapContourInterval = 10;
-
-		map.WatermapTex = new Texture2D(map.UncompressedWatermapTex.width, map.UncompressedWatermapTex.height, map.UncompressedWatermapTex.format, false);
-		map.WatermapTex.SetPixels(map.UncompressedWatermapTex.GetPixels());
-		map.WatermapTex.Apply();
-		map.WatermapTex.Compress(true);
-		map.WatermapTex.Apply();
-
-		map.NormalmapTex = new Texture2D(map.UncompressedNormalmapTex.width, map.UncompressedNormalmapTex.height, map.UncompressedNormalmapTex.format, false);
-		map.NormalmapTex.SetPixels(map.UncompressedNormalmapTex.GetPixels());
-		map.NormalmapTex.Apply();
-		map.NormalmapTex.Compress(true);
-		map.NormalmapTex.Apply();
-
-		map.PreviewTex = PreviewRenderer.RenderPreview(((LowestElevation + HighestElevation) / 2) * 0.1f);
-
-		FixCustomAssetsPaths();
-
-		List<Prop> AllProps = new List<Prop>();
-		if (EditMap.PropsInfo.AllPropsTypes != null)
-		{
-			int Count = EditMap.PropsInfo.AllPropsTypes.Count;
-			for (int i = 0; i < EditMap.PropsInfo.AllPropsTypes.Count; i++)
-			{
-				AllProps.AddRange(EditMap.PropsInfo.AllPropsTypes[i].GenerateSupComProps());
-			}
-		}
-		map.Props = AllProps;
-
-
-		if(map.VersionMinor < 56)
-		{
-			map.ConvertToV56();
-		}
-
-		map.Save(path,  map.VersionMinor);
-	}
-
 	private void FixCustomAssetsPaths()
 	{
 		for (int i = 0; i < map.Layers.Count; i++)
@@ -883,10 +756,7 @@ public partial class ScmapEditor : MonoBehaviour
 
 	public void UnloadMap()
 	{
-		EditMap.PropsInfo.UnloadProps();
-		EditMap.UnitsInfo.UnloadUnits();
 		Markers.MarkersControler.UnloadMarkers();
-		DecalsControler.Current.UnloadDecals();
 		GenerateControlTex.StopAllTasks();
 	}
 #endregion
@@ -1251,8 +1121,6 @@ public partial class ScmapEditor : MonoBehaviour
 		
 		if (shaderId >= 200)
 		{
-			MapLuaParser.Current.EditMenu.LightingMenu.Specular.gameObject.SetActive(false);
-			MapLuaParser.Current.EditMenu.LightingMenu.SpecularRed.gameObject.SetActive(false);
 			MapLuaParser.Current.EditMenu.TexturesMenu.ShaderSettings.gameObject.SetActive(true);
 			// arguments are: blurriness, contrast increase, cos(30), sin(30)
 			map.SpecularColor = new Vector4(map.SpecularColor.x, 0.6f, 0.866f, 0.5f);
@@ -1260,20 +1128,14 @@ public partial class ScmapEditor : MonoBehaviour
 		}
 		else if (shaderId >= 100)
 		{
-			MapLuaParser.Current.EditMenu.LightingMenu.Specular.gameObject.SetActive(false);
-			MapLuaParser.Current.EditMenu.LightingMenu.SpecularRed.gameObject.SetActive(false);
 			MapLuaParser.Current.EditMenu.TexturesMenu.ShaderSettings.gameObject.SetActive(false);
 		}
 		else if (shaderId == -10)  //TTerrain
 		{
-			MapLuaParser.Current.EditMenu.LightingMenu.Specular.gameObject.SetActive(false);
-			MapLuaParser.Current.EditMenu.LightingMenu.SpecularRed.gameObject.SetActive(true);
 			MapLuaParser.Current.EditMenu.TexturesMenu.ShaderSettings.gameObject.SetActive(false);
 		}
 		else
 		{
-			MapLuaParser.Current.EditMenu.LightingMenu.Specular.gameObject.SetActive(true);
-			MapLuaParser.Current.EditMenu.LightingMenu.SpecularRed.gameObject.SetActive(false);
 			MapLuaParser.Current.EditMenu.TexturesMenu.ShaderSettings.gameObject.SetActive(false);
 		}
 		

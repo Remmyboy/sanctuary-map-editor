@@ -41,9 +41,9 @@ namespace Ozone.UI
 		Vector4 LastValue = Vector4.one;
 		void UpdateLastValue()
 		{
-			LastValue.x = LuaParser.Read.StringToFloat(Red.text);
-			LastValue.y = LuaParser.Read.StringToFloat(Green.text);
-			LastValue.z = LuaParser.Read.StringToFloat(Blue.text);
+			LastValue.x = TextNumbers.StringToFloat(Red.text);
+			LastValue.y = TextNumbers.StringToFloat(Green.text);
+			LastValue.z = TextNumbers.StringToFloat(Blue.text);
 			if (AlphaSlider)
 				LastValue.w = AlphaSlider.value;
 			else
@@ -137,13 +137,13 @@ namespace Ozone.UI
 
 			Loading = true;
 
-			RedSlider.value = FormatFloat(LuaParser.Read.StringToFloat(Red.text));
-			GreenSlider.value = FormatFloat(LuaParser.Read.StringToFloat(Green.text));
-			BlueSlider.value = FormatFloat(LuaParser.Read.StringToFloat(Blue.text));
+			RedSlider.value = FormatFloat(TextNumbers.StringToFloat(Red.text));
+			GreenSlider.value = FormatFloat(TextNumbers.StringToFloat(Green.text));
+			BlueSlider.value = FormatFloat(TextNumbers.StringToFloat(Blue.text));
 
 			if (AlphaSlider)
 			{
-				AlphaSlider.value = FormatFloat(Mathf.Clamp(LuaParser.Read.StringToFloat(Alpha.text), 0, Max));
+				AlphaSlider.value = FormatFloat(Mathf.Clamp(TextNumbers.StringToFloat(Alpha.text), 0, Max));
 				Alpha.text = AlphaSlider.value.ToString();
 			}
 

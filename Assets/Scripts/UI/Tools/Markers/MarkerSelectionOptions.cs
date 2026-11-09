@@ -483,7 +483,7 @@ namespace EditMap
 			if (Loading || Count <= 0)
 				return;
 			Loading = true;
-			float ReadValue = LuaParser.Read.StringToFloat(Camera_Zoom.text, -1);
+			float ReadValue = TextNumbers.StringToFloat(Camera_Zoom.text, -1);
 
 			Undo.RegisterUndo(new UndoHistory.HistoryMarkersChange(), new UndoHistory.HistoryMarkersChange.MarkersChangeHistoryParameter(AllMarkers));
 
@@ -570,7 +570,7 @@ namespace EditMap
 			if (Loading || Count <= 0)
 				return;
 			Loading = true;
-			float ReadValue = LuaParser.Read.StringToFloat(Size.text, -1);
+			float ReadValue = TextNumbers.StringToFloat(Size.text, -1);
 
 			Undo.RegisterUndo(new UndoHistory.HistoryMarkersChange(), new UndoHistory.HistoryMarkersChange.MarkersChangeHistoryParameter(AllMarkers));
 
@@ -601,7 +601,7 @@ namespace EditMap
 			if (Loading || Count <= 0)
 				return;
 			Loading = true;
-			float ReadValue = LuaParser.Read.StringToFloat(Amount.text, -1);
+			float ReadValue = TextNumbers.StringToFloat(Amount.text, -1);
 
 			Undo.RegisterUndo(new UndoHistory.HistoryMarkersChange(), new UndoHistory.HistoryMarkersChange.MarkersChangeHistoryParameter(AllMarkers));
 
@@ -634,7 +634,7 @@ namespace EditMap
 			if (Loading || Count <= 0)
 				return;
 			Loading = true;
-			float ReadValue = LuaParser.Read.StringToFloat(Scale.text, -1);
+			float ReadValue = TextNumbers.StringToFloat(Scale.text, -1);
 
 			Undo.RegisterUndo(new UndoHistory.HistoryMarkersChange(), new UndoHistory.HistoryMarkersChange.MarkersChangeHistoryParameter(AllMarkers));
 

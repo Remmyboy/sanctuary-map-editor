@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using EditMap;
 using NLua;
 using MapLua;
-using FAF.MapEditor;
 using UnityEngine.Events;
 
 public partial class MapLuaParser : MonoBehaviour
@@ -60,9 +59,6 @@ public partial class MapLuaParser : MonoBehaviour
 	public GameObject Background;
 	public GenericInfoPopup InfoPopup;
 	public GenericInfoPopup ErrorPopup;
-	public PropsInfo PropsMenu;
-	public DecalsInfo DecalsMenu;
-	public UnitsInfo UnitsMenu;
 
 	[Header("Local Data")]
 	public Vector3 MapCenterPoint;
@@ -81,9 +77,6 @@ public partial class MapLuaParser : MonoBehaviour
 		Current = this;
 		LoadStructurePaths();
 
-		DecalsInfo.Current = DecalsMenu;
-		PropsInfo.Current = PropsMenu;
-		UnitsInfo.Current = UnitsMenu;
 	}
 
 	public static void LoadStructurePaths()
@@ -115,7 +108,6 @@ public partial class MapLuaParser : MonoBehaviour
 		EditMenu.TexturesMenu.ResetVisibility();
 		EditMenu.WaterMenu.ResetUi();
 
-		ResourceBrowser.Current.gameObject.SetActive(false);
 	}
 
 	#region Loading

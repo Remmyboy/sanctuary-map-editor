@@ -2,7 +2,6 @@
 using UnityEngine.UI;
 using Ozone.UI;
 using System.IO;
-using FAF.MapEditor;
 using SFB;
 
 namespace EditMap
@@ -52,10 +51,6 @@ namespace EditMap
 			//WavesRenderer.GenerateShoreline();
 		}
 
-		private void Start()
-		{
-			LoadWavesUI();
-		}
 
 		public void ResetUi()
 		{
@@ -67,11 +62,9 @@ namespace EditMap
 		{
 			if (AdvancedWaterToggle.isOn)
 			{
-				MapLuaParser.Current.EditMenu.LightingMenu.RecalculateLightSettings(2.2f);
             } 
 			else
 			{
-                MapLuaParser.Current.EditMenu.LightingMenu.RecalculateLightSettings(1.8f);
             }
 		}
 
@@ -299,47 +292,6 @@ namespace EditMap
 				;
 		}
 
-		public void selectTexture(InputField inputField)
-		{
-			if(ResourceBrowser.DragedObject == null || ResourceBrowser.DragedObject.ContentType != ResourceObject.ContentTypes.Texture)
-				return;
-			if (!ResourceBrowser.Current.gameObject.activeSelf)
-				return;
-			inputField.text = ResourceBrowser.Current.LoadedPaths[ResourceBrowser.DragedObject.InstanceId];
-			ResourceBrowser.ClearDrag();
-			WaterSettingsChanged(false);
-		}
-		
-		public void ClickWaterRampButton()
-		{
-			ResourceBrowser.Current.LoadWaterRampTexture(WaterRamp.text);
-		}
-		
-		public void ClickSkyCubeButton()
-		{
-			ResourceBrowser.Current.LoadSkyCube(Cubemap.text);
-		}
-		
-		public void ClickWave0Button()
-		{
-			ResourceBrowser.Current.LoadWaveTexture(Waves0.TexPath.text);
-		}
-		
-		public void ClickWave1Button()
-		{
-			ResourceBrowser.Current.LoadWaveTexture(Waves1.TexPath.text);
-		}
-		
-		public void ClickWave2Button()
-		{
-			ResourceBrowser.Current.LoadWaveTexture(Waves2.TexPath.text);
-		}
-		
-		public void ClickWave3Button()
-		{
-			ResourceBrowser.Current.LoadWaveTexture(Waves3.TexPath.text);
-		}
-		
 		public void ClickLightSettingsToggle()
 		{
 			if (UseLightingSettings.isOn)
@@ -349,7 +301,6 @@ namespace EditMap
 					map.SunColor.y * (map.LightingMultiplier - map.ShadowFillColor.y), 
 					map.SunColor.z * (map.LightingMultiplier - map.ShadowFillColor.z));
 				SunDirection = map.SunDirection;
-				Cubemap.text = MapLuaParser.Current.EditMenu.LightingMenu.EnvCube.text;
 			} else {
 				SunDirection = new Vector3(0.09954818f, -0.9626309f, 0.2518569f);
 			}

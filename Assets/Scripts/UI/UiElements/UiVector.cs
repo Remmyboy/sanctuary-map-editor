@@ -25,12 +25,12 @@ namespace Ozone.UI
 		Vector4 LastValue = Vector4.one;
 		void UpdateLastValue()
 		{
-			LastValue.x = FormatFloat(LuaParser.Read.StringToFloat(X.text));
-			LastValue.y = FormatFloat(LuaParser.Read.StringToFloat(Y.text));
+			LastValue.x = FormatFloat(TextNumbers.StringToFloat(X.text));
+			LastValue.y = FormatFloat(TextNumbers.StringToFloat(Y.text));
 			if(Z)
-				LastValue.z = FormatFloat(LuaParser.Read.StringToFloat(Z.text));
+				LastValue.z = FormatFloat(TextNumbers.StringToFloat(Z.text));
 			if(W)
-				LastValue.w = FormatFloat(LuaParser.Read.StringToFloat(W.text));
+				LastValue.w = FormatFloat(TextNumbers.StringToFloat(W.text));
 		}
 
 		public Color GetColorValue()

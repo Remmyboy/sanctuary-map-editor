@@ -19,7 +19,6 @@ namespace EditMap
 		public Transform HudElements;
 		public MapInfo MapInfoMenu;
 		public StratumInfo TexturesMenu;
-		public LightingInfo LightingMenu;
 		public WaterInfo WaterMenu;
 
 		[Header("State")]

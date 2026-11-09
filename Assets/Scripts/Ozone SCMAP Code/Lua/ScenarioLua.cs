@@ -10,7 +10,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using NLua;
 
 namespace MapLua
 {
@@ -18,7 +17,6 @@ namespace MapLua
 	public class ScenarioLua
 	{
 		public ScenarioInfo Data = new ScenarioInfo();
-		Lua LuaFile;
 
 		#region Structure Objects
 		[System.Serializable]
@@ -66,29 +64,6 @@ namespace MapLua
 			public List<Army> ExtraArmys = new List<Army>();
 			public Factions[] factions = new Factions[0];
 
-			public void ArmysFromCustomProps(LuaTable Table)
-			{
-				string[] Names = new string[0];
-				for(int i = 0; i < customprops.Length; i++)
-				{
-					if(customprops[i].key == ScenarioInfo.KEY_EXTRAARMIES)
-					{
-						Names = customprops[i].value.Split(" ".ToCharArray());
-						break;
-					}
-				}
-
-				for(int i = 0; i < Names.Length; i++)
-				{
-					Army NewArmy = new Army();
-					NewArmy.Name = Names[i];
-					NewArmy.NoRush = new NoRusnOffset();
-					NewArmy.NoRush.X = LuaParser.Read.FloatFromTable(Table, NoRusnOffset.VALUE_X + NewArmy.Name, 0);
-					NewArmy.NoRush.Y = LuaParser.Read.FloatFromTable(Table, NoRusnOffset.VALUE_Y + NewArmy.Name, 0);
-
-					ExtraArmys.Add(NewArmy);
-				}
-			}
 
 			public const string KEY_TEAMS = "teams";
 			public const string KEY_CUSTOMPROPS = "customprops";
@@ -103,20 +78,6 @@ namespace MapLua
 			//public string[] Armys = new string[0];
 			public List<Army> Armys = new List<Army>();
 
-			public void ArmysFromStringArray(string[] Array, LuaTable Table)
-			{
-				Armys = new List<Army>();
-				for (int i = 0; i < Array.Length; i++)
-				{
-					Army NewArmy = new Army();
-					NewArmy.Name = Array[i];
-					NewArmy.NoRush = new NoRusnOffset();
-					NewArmy.NoRush.X = LuaParser.Read.FloatFromTable(Table, NoRusnOffset.VALUE_X + NewArmy.Name, 0);
-					NewArmy.NoRush.Y = LuaParser.Read.FloatFromTable(Table, NoRusnOffset.VALUE_Y + NewArmy.Name, 0);
-
-					Armys.Add(NewArmy);
-				}
-			}
 
 			public string[] GetArmys()
 			{
@@ -395,50 +356,6 @@ namespace MapLua
 			return ToReturn;
 		}
 
-		public void SaveArmys(LuaParser.Creator LuaFile)
-		{
-
-			for (int c = 0; c < Data.Configurations.Length; c++)
-			{
-				for (int t = 0; t < Data.Configurations[c].Teams.Length; t++)
-				{
-					for (int a = 0; a < Data.Configurations[c].Teams[t].Armys.Count; a++)
-					{
-						if (Data.Configurations[c].Teams[t].Armys[a] != null)
-						{
-
-							Data.Configurations[c].Teams[t].Armys[a].Data.SaveArmy(LuaFile, Data.Configurations[c].Teams[t].Armys[a].Name);
-
-						}
-					}
-
-				}
-
-				for (int a = 0; a < Data.Configurations[c].ExtraArmys.Count; a++)
-				{
-					if (Data.Configurations[c].ExtraArmys[a].Data != null)
-					{
-						Data.Configurations[c].ExtraArmys[a].Data.SaveArmy(LuaFile, Data.Configurations[c].ExtraArmys[a].Name);
-					}
-				}
-			}
-
-			/*for(int a = 0; a < Data.Armies.Length; a++)
-			{
-				LuaFile.AddSaveComent("");
-				LuaFile.AddSaveComent("Army");
-				LuaFile.AddSaveComent("");
-
-				LuaFile.AddLine(LuaParser.Write.PropertiveToLua(Data.Armies[a].Name) + LuaParser.Write.SetValue);
-				LuaFile.OpenTab(LuaParser.Write.OpenBracket);
-				{
-					Data.Armies[a].SaveArmy(LuaFile);
-
-				}
-				LuaFile.CloseTab(LuaParser.Write.EndBracketNext);
-			}*/
-
-		}
 
 
 		#endregion

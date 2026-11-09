@@ -609,18 +609,6 @@ namespace Selection
 			{
 				Undo.RegisterUndo(new UndoHistory.HistoryMarkersMove(), new UndoHistory.HistoryMarkersMove.MarkersMoveHistoryParameter(true));
 			}
-			else if(LastControlType == SelectionControlTypes.Decal)
-			{
-				Undo.RegisterUndo(new UndoHistory.HistoryDecalsMove(), new UndoHistory.HistoryDecalsMove.DecalsMoveHistoryParameter(true));
-			}
-			else if(LastControlType == SelectionControlTypes.Units)
-			{
-				Undo.RegisterUndo(new UndoHistory.HistoryUnitsMove());
-			}
-			else if (LastControlType == SelectionControlTypes.Props)
-			{
-				Undo.RegisterUndo(new UndoHistory.HistoryPropsMove(), new UndoHistory.HistoryPropsMove.PropsMoveHistoryParameter(true));
-			}
 		}
 
 		bool Draged = false;

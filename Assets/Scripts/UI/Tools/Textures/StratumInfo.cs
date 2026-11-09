@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Ozone.UI;
 using System.IO;
 using SFB;
-using FAF.MapEditor;
 using UnityEngine.Serialization;
 using Debug = UnityEngine.Debug;
 using Image = UnityEngine.UI.Image;
@@ -968,65 +967,7 @@ namespace EditMap
 		}
 
 		#region Select Texture
-		public void SelectAlbedo()
-		{
-			if(ResourceBrowser.DragedObject == null || ResourceBrowser.DragedObject.ContentType != ResourceObject.ContentTypes.Texture)
-				return;
 
-			if (!ResourceBrowser.Current.gameObject.activeSelf)
-				return;
-			if (ResourceBrowser.SelectedCategory == 0 || ResourceBrowser.SelectedCategory == 1)
-			{
-				Undo.RegisterUndo(new UndoHistory.HistoryStratumChange(), new UndoHistory.HistoryStratumChange.StratumChangeHistoryParameter(Selected));
-				//Debug.Log(ResourceBrowser.Current.LoadedPaths[ResourceBrowser.DragedObject.InstanceId]);
-
-				ScmapEditor.Current.Textures[Selected].Albedo = ResourceBrowser.Current.LoadedTextures[ResourceBrowser.DragedObject.InstanceId];
-				ScmapEditor.Current.Textures[Selected].AlbedoPath = ResourceBrowser.Current.LoadedPaths[ResourceBrowser.DragedObject.InstanceId];
-
-				//Map.map.Layers [Selected].PathTexture = Map.Textures [Selected].AlbedoPath;
-
-				ResourceBrowser.ClearDrag();
-				ScmapEditor.Current.SetTextures(Selected);
-				ReloadStratums();
-				SelectStratum(Selected);
-			}
-		}
-
-		public void SelectNormal()
-		{
-			if (ResourceBrowser.DragedObject == null || ResourceBrowser.DragedObject.ContentType != ResourceObject.ContentTypes.Texture)
-				return;
-
-			if (!ResourceBrowser.Current.gameObject.activeSelf)
-				return;
-			if (ResourceBrowser.SelectedCategory == 0 || ResourceBrowser.SelectedCategory == 1)
-			{
-				Undo.RegisterUndo(new UndoHistory.HistoryStratumChange(), new UndoHistory.HistoryStratumChange.StratumChangeHistoryParameter(Selected));
-				Debug.Log(ResourceBrowser.Current.LoadedPaths[ResourceBrowser.DragedObject.InstanceId]);
-
-				//Map.Textures [Selected].Normal = ResourceBrowser.Current.LoadedTextures [ResourceBrowser.DragedObject.InstanceId];
-				ScmapEditor.Current.Textures[Selected].NormalPath = ResourceBrowser.Current.LoadedPaths[ResourceBrowser.DragedObject.InstanceId];
-
-				GetGamedataFile.LoadTextureFromGamedata(ScmapEditor.Current.Textures[Selected].NormalPath, Selected, true);
-
-				//Map.map.Layers [Selected].PathNormalmap = Map.Textures [Selected].NormalPath;
-
-				ResourceBrowser.ClearDrag();
-				ScmapEditor.Current.SetTextures(Selected);
-				ReloadStratums();
-				SelectStratum(Selected);
-			}
-		}
-
-		public void ClickAlbedo()
-		{
-			ResourceBrowser.Current.LoadStratumTexture(ScmapEditor.Current.Textures[Selected].AlbedoPath);
-		}
-
-		public void ClickNormal()
-		{
-			ResourceBrowser.Current.LoadStratumTexture(ScmapEditor.Current.Textures[Selected].NormalPath);
-		}
 		#endregion
 
 

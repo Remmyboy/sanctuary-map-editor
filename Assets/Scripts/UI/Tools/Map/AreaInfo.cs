@@ -195,18 +195,18 @@ public class AreaInfo : MonoBehaviour {
 		
 		targetDataObject.Name = editedArea.Name.text;
 
-		targetDataObject.rectangle.x = LuaParser.Read.StringToFloat(editedArea.SizeX.text);
-		targetDataObject.rectangle.y = LuaParser.Read.StringToFloat(editedArea.SizeY.text);
+		targetDataObject.rectangle.x = TextNumbers.StringToFloat(editedArea.SizeX.text);
+		targetDataObject.rectangle.y = TextNumbers.StringToFloat(editedArea.SizeY.text);
 
 		if (BorderRelative.isOn)
 		{
-			targetDataObject.rectangle.width = ScmapEditor.Current.map.Width - LuaParser.Read.StringToFloat(editedArea.SizeWidth.text);
-			targetDataObject.rectangle.height = ScmapEditor.Current.map.Height - LuaParser.Read.StringToFloat(editedArea.SizeHeight.text);
+			targetDataObject.rectangle.width = ScmapEditor.Current.map.Width - TextNumbers.StringToFloat(editedArea.SizeWidth.text);
+			targetDataObject.rectangle.height = ScmapEditor.Current.map.Height - TextNumbers.StringToFloat(editedArea.SizeHeight.text);
 		}
 		else
 		{
-			targetDataObject.rectangle.width = LuaParser.Read.StringToFloat(editedArea.SizeWidth.text);
-			targetDataObject.rectangle.height = LuaParser.Read.StringToFloat(editedArea.SizeHeight.text);
+			targetDataObject.rectangle.width = TextNumbers.StringToFloat(editedArea.SizeWidth.text);
+			targetDataObject.rectangle.height = TextNumbers.StringToFloat(editedArea.SizeHeight.text);
 		}
 
 		if (SelectedArea == targetDataObject)
