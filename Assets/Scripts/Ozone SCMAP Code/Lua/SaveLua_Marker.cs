@@ -521,6 +521,12 @@ namespace MapLua
 
 		public static string GetLowestName(Marker.MarkerTypes Type)
 		{
+			// Sanctuary: spawns are Army_1, Army_2...; resource spots follow
+			// the map's own naming (Alloys_7, AlloyMarker_12...).
+			string sanPrefix = Sanctuary.SanctuaryMapLoader.NewMarkerPrefix(Type);
+			if (sanPrefix != null)
+				return Sanctuary.SanctuaryMapLoader.LowestFreeName(sanPrefix);
+
 			string prefix = GetPrefixByType(Type);
 
 			int ID = 0;

@@ -44,6 +44,55 @@ namespace Sanctuary
 			TerrainAtLoad = null;
 		}
 
+		/// Name prefix for a marker created in the editor, or null to use the
+		/// editor's own naming. Spawns are "Army_"; resource spots copy the
+		/// prefix of the map's first resource marker ("Alloys_" on converted
+		/// maps, "AlloyMarker_" on the developers').
+		public static string NewMarkerPrefix(SaveLua.Marker.MarkerTypes type)
+		{
+			if (!IsActive) return null;
+			var m = Folder.Map;
+			if (type == SaveLua.Marker.MarkerTypes.BlankMarker)
+			{
+				// The map's own spelling: Army_ on the developers' maps, ARMY_ on converted ones.
+				foreach (var kv in m.GetMarkers("Spawn"))
+				{
+					string p = PrefixOf(kv.Key);
+					if (p.Length > 0) return p;
+				}
+				return "Army_";
+			}
+			if (type != SaveLua.Marker.MarkerTypes.Mass && type != SaveLua.Marker.MarkerTypes.Hydrocarbon) return null;
+			foreach (var t in m.MarkerTypes)
+			{
+				if (!m.IsResourceMarkerType(t)) continue;
+				foreach (var kv in m.GetMarkers(t))
+				{
+					string p = PrefixOf(kv.Key);
+					if (p.Length > 0) return p;
+				}
+			}
+			return "Alloys_";
+		}
+
+		static string PrefixOf(string name)
+		{
+			string p = name.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+			return p.Length == 0 || p.EndsWith("_") || p.EndsWith(" ") ? p : p + "_";
+		}
+
+		/// Lowest prefix+n not used by any marker, ignoring case (the game and
+		/// the saver match spawn and army names case-insensitively).
+		public static string LowestFreeName(string prefix)
+		{
+			var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (var mk in MapLuaParser.Current.SaveLuaFile.Data.MasterChains[0].Markers) taken.Add(mk.Name);
+			foreach (var a in Folder.Map.ArmyNames) taken.Add(a);
+			int n = 1;
+			while (taken.Contains(prefix + n)) n++;
+			return prefix + n;
+		}
+
 		public static bool IsSanmapPath(string path) =>
 			!string.IsNullOrEmpty(path) &&
 			(path.EndsWith(SanMapDocument.Extension, StringComparison.OrdinalIgnoreCase) ||

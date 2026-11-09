@@ -16,6 +16,34 @@ namespace Sanctuary
 		public const int MaskBox = 16;
 		public const float MoveEastMetres = 8f;
 
+		/// -testmarkers: a new spawn and a new alloy spot at the map centre
+		/// (through the Markers tool's own constructor and naming), and the
+		/// first existing alloy spot deleted.
+		public static void ApplyMarkers()
+		{
+			if (!SanctuaryMapLoader.IsActive) return;
+			var list = MapLuaParser.Current.SaveLuaFile.Data.MasterChains[0].Markers;
+			float c = SanctuaryMapLoader.Size / 2f;
+			var spawn = new SaveLua.Marker(SaveLua.Marker.MarkerTypes.BlankMarker);
+			spawn.position = OnGround(c, c);
+			list.Add(spawn);
+			var alloy = new SaveLua.Marker(SaveLua.Marker.MarkerTypes.Mass);
+			alloy.position = OnGround(c + 20, c);
+			list.Add(alloy);
+			var gone = list.Find(m => m.MarkerType == SaveLua.Marker.MarkerTypes.Mass && m != alloy);
+			if (gone != null) list.Remove(gone);
+			Debug.Log($"Sanctuary test markers: added {spawn.Name}, {alloy.Name}; removed {gone?.Name}");
+		}
+
+		/// FA map coordinates (x, metres up, z from north) on the terrain, as the
+		/// Markers tool places them.
+		static Vector3 OnGround(float x, float z)
+		{
+			var world = ScmapEditor.ScmapPosToWorld(new Vector3(x, 0, z));
+			world.y = ScmapEditor.Current.Teren.SampleHeight(world) + ScmapEditor.Current.Teren.transform.position.y;
+			return ScmapEditor.WorldPosToScmap(world);
+		}
+
 		public static void Apply()
 		{
 			if (!SanctuaryMapLoader.IsActive) return;

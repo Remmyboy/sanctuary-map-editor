@@ -226,6 +226,40 @@ public static class StandaloneCleanup
 		}
 	}
 
+	/// Markers page: Sanctuary maps carry spawns and resource (alloy) spots.
+	///   Unity.exe -batchmode -quit -projectPath . -executeMethod StandaloneCleanup.SanctuaryMarkers
+	const string MarkersNone = Left + "Markers/ToolPageGroup/Markers/field/Pivot/None/";
+	static readonly string[] FaMarkerControls =
+	{
+		"CreateNewField/field2/Hydro", "CreateNewField/field2/Camera", "CreateNewField/field2/Spawn Presset",
+		"CreateNewField/field2/AI_Path", "CreateNewField/field2/AI_Combat", "CreateNewField/field2/AI_Defense",
+		"CreateNewField/field2/AI_Expand", "CreateNewField/field2/AI_Experimental", "CreateNewField/field2/AI_Transport",
+		"CreateNewField/field2/AI_Other",
+		"AiMarkers_Path", "AiMarkers_Combat", "AiMarkers_Defense", "AiMarkers_Expand", "AiMarkers_Experimental",
+		"AiMarkers_Rally", "AiMarkers_Other", "AiMarkers_All", "Presets", "CreateFromCamera",
+	};
+
+	public static void SanctuaryMarkers()
+	{
+		var scene = EditorSceneManager.OpenScene("Assets/MapEditor.unity", OpenSceneMode.Single);
+		var all = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true)).ToList();
+		int off = 0, text = 0;
+		foreach (var t in all)
+		{
+			string p = PathOf(t);
+			if (!p.StartsWith(MarkersNone)) continue;
+			string rel = p.Substring(MarkersNone.Length);
+			if (FaMarkerControls.Contains(rel) && t.gameObject.activeSelf) { t.gameObject.SetActive(false); Record(t.gameObject); off++; }
+			var label = t.GetComponent<Text>();
+			if (label == null) continue;
+			if (rel == "CreateNewField/field2/Blank/Text" && label.text != "Spawn") { label.text = "Spawn"; Record(label); text++; }
+			if (rel == "CreateNewField/field2/Mass/Text" && label.text != "Alloy") { label.text = "Alloy"; Record(label); text++; }
+		}
+		EditorSceneManager.MarkSceneDirty(scene);
+		EditorSceneManager.SaveScene(scene);
+		Debug.Log($"SanctuaryMarkers: {off} deactivated, {text} relabelled");
+	}
+
 	/// Changes to objects inside a prefab instance are dropped on save
 	/// unless recorded as overrides (the splash Background is a prefab).
 	static void Record(Object o)

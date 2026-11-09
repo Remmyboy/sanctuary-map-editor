@@ -197,6 +197,13 @@ namespace Sanctuary
 
 		// ---- scenario ----------------------------------------------------
 
+		static bool IsSpawn(SaveLua.Marker m)
+		{
+			if (SanctuaryMapLoader.MarkerSourceType.TryGetValue(m.Name, out var type))
+				return string.Equals(type, "Spawn", StringComparison.OrdinalIgnoreCase);
+			return m.MarkerType == SaveLua.Marker.MarkerTypes.BlankMarker;
+		}
+
 		static void WriteScenario(SanMapFolder folder)
 		{
 			var doc = folder.Map;
@@ -211,6 +218,17 @@ namespace Sanctuary
 				foreach (var team in conf.Teams) names.AddRange(team.Armys.Select(a => a.Name));
 				names.AddRange(conf.ExtraArmys.Select(a => a.Name));
 			}
+
+			// Keep armies and spawns paired, as the lobby needs: a spawn placed
+			// in the editor gets an army; an army whose spawn was deleted goes
+			// (neutral armies have no spawn and stay).
+			var spawns = MapLuaParser.Current.SaveLuaFile.Data.MasterChains[0].Markers
+				.Where(m => IsSpawn(m)).Select(m => m.Name).ToList();
+			foreach (var s in spawns)
+				if (!names.Any(n => string.Equals(n, s, StringComparison.OrdinalIgnoreCase))) names.Add(s);
+			names.RemoveAll(n => !n.StartsWith("NEUTRAL", StringComparison.OrdinalIgnoreCase)
+				&& !spawns.Any(s => string.Equals(s, n, StringComparison.OrdinalIgnoreCase)));
+
 			var old = doc.Json["armies"] as JObject ?? new JObject();
 			var armies = new JObject();
 			foreach (var n in names.Distinct())
