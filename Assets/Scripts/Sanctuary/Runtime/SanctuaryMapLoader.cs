@@ -129,6 +129,7 @@ namespace Sanctuary
 				yield break;
 			}
 
+			ReadCalibrationArgs();
 			var map = new Map(Size, Size, 0, m.HasWater, 0, 0, 0);
 			map.TerrainShader = "TTerrainXP";
 			map.Water.HasWater = m.HasWater;
@@ -233,6 +234,77 @@ namespace Sanctuary
 			Vector3 toSun = -(Quaternion.Euler(da, ra, 0) * Vector3.forward);
 			if (toSun.y < 0.1f) toSun.y = 0.1f;
 			map.SunDirection = toSun.normalized;
+
+			// Neutral light: FA's defaults are a warm sun with a 1.3x
+			// multiplier, which turned Sanctuary greens yellow. Colour comes
+			// from the baked diffuseRemap instead (BakeDiffuseRemap).
+			// Sun and sky colours come from the map's own colour temperatures
+			// (the game lights with physical temperatures; the blue sky light
+			// is most of why its previews read cool).
+			Color sun = Kelvin((float)m.Json.Value<double?>("sunTemperature").GetValueOrDefault(6500)) * Tint(m, "sunTint");
+			Color sky = SkyColor(m);
+			map.SunColor = new Vector3(sun.r, sun.g, sun.b) * SunLevel;
+			map.SunAmbience = new Vector3(sky.r, sky.g, sky.b) * AmbientLevel;
+			map.LightingMultiplier = 1f;
+			map.ShadowFillColor = Vector3.zero;
+			map.SpecularColor = Vector4.zero;
+		}
+
+		/// Display calibration, set by matching editor screenshots to the
+		/// game's own preview.png (Tools~/compare-preview.ps1). Overridable
+		/// on the command line: -remapgain, -ambient.
+		public static float RemapGain = 2f;
+		public static float AmbientLevel = 0.6f;
+		public static float SunLevel = 0.8f;
+		/// The game's height and distance fog give its overhead views a cool
+		/// haze; the FA shader's fog uniforms are never set by the editor, so
+		/// a fixed share of sky-coloured haze is baked into the displayed
+		/// layers instead.
+		public static float HazeLevel = 0.25f;
+		public static float HazeBright = 0.7f;
+
+		/// Ambient colour. Every shipped developer map has skylightIntensity
+		/// 0 (White Desert's 1500 K sky would otherwise paint it orange): its
+		/// ambient comes from the skybox, approximated as 10000 K daylight
+		/// sky. A map that turns the sky light on gets its own colour.
+		static Color SkyColor(SanMapDocument m)
+		{
+			double intensity = m.Json.Value<double?>("skylightIntensity").GetValueOrDefault(0);
+			if (intensity <= 0) return Kelvin(10000f);
+			return Kelvin((float)m.Json.Value<double?>("skylightTemperature").GetValueOrDefault(9000)) * Tint(m, "skylightTint");
+		}
+
+		static Color Tint(SanMapDocument m, string key)
+		{
+			var t = m.Json[key] as JObject;
+			if (t == null) return Color.white;
+			return new Color(t.Value<float?>("r") ?? 1, t.Value<float?>("g") ?? 1, t.Value<float?>("b") ?? 1, 1);
+		}
+
+		/// Black-body colour, normalised so the brightest channel is 1
+		/// (Tanner Helland's fit, good to a few percent over 1000-40000 K).
+		public static Color Kelvin(float k)
+		{
+			float t = Mathf.Clamp(k, 1000f, 40000f) / 100f;
+			float r = t <= 66 ? 255 : 329.698727446f * Mathf.Pow(t - 60, -0.1332047592f);
+			float g = t <= 66 ? 99.4708025861f * Mathf.Log(t) - 161.1195681661f : 288.1221695283f * Mathf.Pow(t - 60, -0.0755148492f);
+			float b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5177312231f * Mathf.Log(t - 10) - 305.0447927307f;
+			var c = new Color(Mathf.Clamp(r, 0, 255) / 255f, Mathf.Clamp(g, 0, 255) / 255f, Mathf.Clamp(b, 0, 255) / 255f);
+			float max = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+			return c / max;
+		}
+
+		static void ReadCalibrationArgs()
+		{
+			var a = Environment.GetCommandLineArgs();
+			for (int i = 0; i < a.Length - 1; i++)
+			{
+				if (a[i] == "-remapgain") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out RemapGain);
+				if (a[i] == "-ambient") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out AmbientLevel);
+				if (a[i] == "-sunlevel") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out SunLevel);
+				if (a[i] == "-haze") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out HazeLevel);
+				if (a[i] == "-hazebright") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out HazeBright);
+			}
 		}
 
 		static Texture2D calmWave;
@@ -328,6 +400,8 @@ namespace Sanctuary
 				map.Layers[i].ScaleNormalmap = tile;
 			}
 
+			BakeDiffuseRemap(ed, m);
+
 			// Splat masks: stratums_1_4 RGBA = layers 1-4, stratums_5_8 = 5-8,
 			// the same packing as FA's two texture maps.
 			try
@@ -340,6 +414,76 @@ namespace Sanctuary
 			{
 				Debug.LogError("Stratum masks: " + e.Message);
 			}
+		}
+
+		/// The game draws each stratum as albedo x diffuseRemap: the remap
+		/// carries most of a layer's colour (the Forge's sand texture is near
+		/// white, its remap a dark tan). The FA shader has no such input, so
+		/// the product is baked into the displayed texture. The game's
+		/// exposure then brightens the whole result; here one gain per map
+		/// keeps the mean brightness of the layers as it was, which keeps
+		/// every layer's colour relative to the others. The textures written
+		/// back on save are untouched: only the copies on screen change.
+		static void BakeDiffuseRemap(ScmapEditor ed, SanMapDocument m)
+		{
+			int n = Mathf.Min(SanMapDocument.StratumCount, ed.Textures.Length);
+			var remaps = new Color[n];
+			var means = new Color[n];
+			var use = new bool[n];
+			double lumBefore = 0, lumAfter = 0;
+			for (int i = 0; i < n; i++)
+			{
+				var tex = ed.Textures[i].Albedo;
+				var r = m.StratumLayers?[i]?["diffuseRemap"] as JObject;
+				if (tex == null || r == null || string.IsNullOrEmpty(m.GetStratumTexture(i, "albedo")) || !tex.isReadable) continue;
+				remaps[i] = new Color(r.Value<float>("r"), r.Value<float>("g"), r.Value<float>("b"), 1);
+				means[i] = MeanColor(tex);
+				use[i] = true;
+				lumBefore += Lum(means[i]);
+				lumAfter += Lum(means[i] * remaps[i]);
+			}
+			if (lumAfter <= 0) return;
+			// One gain for every map: normalising per map made light maps
+			// (Two Step Shuffle) 1.7x too bright against the game's preview.
+			float gain = RemapGain;
+			Color haze = SkyColor(m) * HazeBright;
+			float h = Mathf.Clamp01(HazeLevel), keep = 1f - h;
+
+			for (int i = 0; i < n; i++)
+			{
+				if (!use[i]) continue;
+				var src = ed.Textures[i].Albedo;
+				Color k = remaps[i] * gain;
+				var px = src.GetPixels(0);
+				for (int p = 0; p < px.Length; p++)
+				{
+					var c = px[p];
+					px[p] = new Color(
+						Mathf.Clamp01(c.r * k.r * keep + haze.r * h),
+						Mathf.Clamp01(c.g * k.g * keep + haze.g * h),
+						Mathf.Clamp01(c.b * k.b * keep + haze.b * h), c.a);
+				}
+				var baked = new Texture2D(src.width, src.height, TextureFormat.RGBA32, true, false)
+				{
+					name = src.name + " (remap)", wrapMode = TextureWrapMode.Repeat, anisoLevel = 4, filterMode = FilterMode.Trilinear,
+				};
+				baked.SetPixels(px, 0);
+				baked.Apply(true);
+				ed.Textures[i].Albedo = baked;
+			}
+			Debug.Log($"Sanctuary diffuseRemap baked into {System.Linq.Enumerable.Count(use, u => u)} layers, gain {gain:0.00}");
+		}
+
+		static float Lum(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
+
+		static Color MeanColor(Texture2D t)
+		{
+			int mip = 0;
+			while (mip < t.mipmapCount - 1 && (t.width >> mip) > 64) mip++;
+			var px = t.GetPixels(mip);
+			Color s = Color.clear;
+			foreach (var c in px) s += c;
+			return s / Mathf.Max(1, px.Length);
 		}
 
 		/// Spawn markers should sit on the terrain; a large gap means the
