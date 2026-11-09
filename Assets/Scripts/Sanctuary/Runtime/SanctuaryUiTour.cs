@@ -18,7 +18,9 @@ namespace Sanctuary
 	public static class SanctuaryUiTour
 	{
 		static readonly Regex Risky = new Regex(
-			"save|open|load|export|import|quit|exit|browse|path|url|help|shortcut|log|upload|discord|github|newmap|new map|recent|close|apply|play",
+			// LayersList: the marker layer switches are saved between sessions
+			// (an earlier tour left them all off in the user's editor).
+			"save|open|load|export|import|quit|exit|browse|path|url|help|shortcut|log|upload|discord|github|newmap|new map|recent|close|apply|play|LayersList",
 			RegexOptions.IgnoreCase);
 
 		static readonly List<string> Problems = new List<string>();

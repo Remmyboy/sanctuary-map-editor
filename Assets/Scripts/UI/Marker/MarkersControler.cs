@@ -270,6 +270,26 @@ namespace Markers
 		}
 
 
+		/// A marker just placed must be seen: if its layer (Markers > Layers)
+		/// is switched off, switch it on. Otherwise a placed spawn or alloy
+		/// spot is created and saved but never appears.
+		public static void ShowLayerOf(SaveLua.Marker marker)
+		{
+			if (marker?.MarkerObj == null) return;
+			var s = Current.MarkerLayersSettings;
+			bool spawn = marker.MarkerType == SaveLua.Marker.MarkerTypes.BlankMarker && ArmyInfo.ArmyExist(marker.Name);
+			if (spawn ? s.Spawn : s.ActiveByType(marker.MarkerType)) return;
+			switch (marker.MarkerType)
+			{
+				case SaveLua.Marker.MarkerTypes.BlankMarker: s.Blank = true; if (spawn) s.Spawn = true; break;
+				case SaveLua.Marker.MarkerTypes.Mass:
+				case SaveLua.Marker.MarkerTypes.Hydrocarbon: s.Resource = true; break;
+				default: return;
+			}
+			s.SavePrefs();
+			UpdateLayers();
+		}
+
 		public static void CreateMarker(SaveLua.Marker Owner, int mc)
 		{
 			GameObject NewMarker = Instantiate(Current.MarkerPrefab, Current.MasterChains[mc]);

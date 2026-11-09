@@ -288,6 +288,9 @@ namespace EditMap
 				//MapLuaParser.Current.SaveLuaFile.Data.MasterChains[mc].Markers = MapLuaParser.Current.SaveLuaFile.Data.MasterChains[mc].Markers.Concat<MapLua.SaveLua.Marker>(NewMarkers.ToArray());
 				MarkerSelectionOptions.UpdateOptions();
 				MarkersControler.UpdateBlankMarkersGraphics();
+				var all = MapLuaParser.Current.SaveLuaFile.Data.MasterChains[mc].Markers;
+				foreach (int i in LastAddedMarkers)
+					if (i < all.Count) MarkersControler.ShowLayerOf(all[i]);
 				RenderMarkersWarnings.Generate();
 			}
 		}

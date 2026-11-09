@@ -65,6 +65,46 @@ namespace Sanctuary
 			Debug.Log($"Sanctuary test props: painted {placed}, erased {erased}; {SanctuaryProps.Count} props now");
 		}
 
+		/// -testplace: the Markers tool as a click uses it: Markers tab, the
+		/// Spawn (then Alloy) button, the placement ghost moved to a point
+		/// 40 m (then 60 m) east of the centre, and the placement's own Place
+		/// (what a left click calls). Logs whether each marker was created,
+		/// is shown, and where, then aims the camera at them.
+		public static void ApplyPlace()
+		{
+			if (!SanctuaryMapLoader.IsActive) return;
+			var edit = MapLuaParser.Current.EditMenu;
+			edit.ButtonFunction("Markers");
+			var markers = MapLuaParser.Current.SaveLuaFile.Data.MasterChains[0].Markers;
+			float c = SanctuaryMapLoader.Size / 2f;
+			var place = typeof(PlacementManager).GetMethod("Place", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+			foreach (var (button, east) in new[] { (0, 40f), (1, 60f) })
+			{
+				int before = markers.Count;
+				EditMap.NewMarkersInfo.Current.SelectCreateNew(button);
+				var pm = PlacementManager.Current;
+				var world = ScmapEditor.ScmapPosToWorld(new Vector3(c + east, 0, c));
+				world.y = ScmapEditor.Current.Teren.SampleHeight(world);
+				string error = null;
+				if (pm == null || pm.PlacementObject == null) error = "no placement object";
+				else
+				{
+					pm.PlacementObject.transform.position = world;
+					try { place.Invoke(pm, null); } catch (System.Exception e) { error = (e.InnerException ?? e).ToString(); }
+				}
+				var added = markers.Count > before ? markers[markers.Count - 1] : null;
+				var obj = added?.MarkerObj;
+				var r = obj != null ? obj.GetComponentInChildren<Renderer>(true) : null;
+				Debug.Log($"Sanctuary test place (button {button}): {(added == null ? "NOT created" : $"created {added.Name} ({added.MarkerType}) at {added.position}")}; " +
+					$"object {(obj == null ? "none" : obj.gameObject.activeInHierarchy ? "shown" : "hidden")}, renderer {(r == null ? "none" : r.enabled && r.gameObject.activeInHierarchy ? "on" : "off")}, layer {(obj != null ? LayerMask.LayerToName(obj.gameObject.layer) : "-")}" +
+					(r != null ? $", mesh {obj.Mf.sharedMesh?.name} {r.bounds.size}, material {r.sharedMaterial?.name} shader {r.sharedMaterial?.shader?.name} supported {r.sharedMaterial?.shader?.isSupported}, at world {r.bounds.center}, on screen {Camera.main.WorldToScreenPoint(r.bounds.center)}" : "") + (error != null ? "; error " + error : ""));
+				EditMap.NewMarkersInfo.Current.SelectCreateNew(button); // back to selection
+			}
+			var focus = ScmapEditor.ScmapPosToWorld(new Vector3(c + 50, 0, c));
+			focus.y = ScmapEditor.Current.Teren.SampleHeight(focus);
+			CameraControler.FocusCamera(focus, Quaternion.Euler(50, 0, 0), 4);
+		}
+
 		/// -testtools: the props Select tool, a paint stroke, a texture pick
 		/// and a drawn playable area, each through the code the mouse calls,
 		/// each undone and redone through the editor's Undo, with every
