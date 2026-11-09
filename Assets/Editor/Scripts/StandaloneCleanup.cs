@@ -192,6 +192,40 @@ public static class StandaloneCleanup
 		}
 	}
 
+	/// After the FA scripts are deleted: unit/prop template objects go,
+	/// and components left without a script are stripped elsewhere.
+	///   Unity.exe -batchmode -quit -projectPath . -executeMethod StandaloneCleanup.RemoveMissingScripts
+	static readonly string[] FaTemplates = { "UnitObject", "CreationUnitObject", "PropObject" };
+
+	public static void RemoveMissingScripts()
+	{
+		foreach (var path in new[] { "Assets/MapEditor.unity", "Assets/Preload.unity" })
+		{
+			var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+			int objects = 0, comps = 0;
+			foreach (var t in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true)).ToList())
+			{
+				if (t == null) continue;
+				int missing = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(t.gameObject);
+				if (missing == 0) continue;
+				if (FaTemplates.Contains(t.name))
+				{
+					Debug.Log("RemoveMissingScripts: destroy " + PathOf(t));
+					Object.DestroyImmediate(t.gameObject);
+					objects++;
+				}
+				else
+				{
+					Debug.Log($"RemoveMissingScripts: strip {missing} from " + PathOf(t));
+					comps += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(t.gameObject);
+				}
+			}
+			EditorSceneManager.MarkSceneDirty(scene);
+			EditorSceneManager.SaveScene(scene);
+			Debug.Log($"RemoveMissingScripts {path}: {objects} objects destroyed, {comps} components stripped");
+		}
+	}
+
 	/// Changes to objects inside a prefab instance are dropped on save
 	/// unless recorded as overrides (the splash Background is a prefab).
 	static void Record(Object o)

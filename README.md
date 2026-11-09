@@ -24,7 +24,53 @@ remote.
 | 4 | Terrain rendering close to the game's `RTS/TerrainLit` | partly: layer colours calibrated against the game's previews; the game's shader source would make it exact |
 | 5 | Sanctuary prop library (`.santp`, `.sanmodel`): show and edit props | not started; props pass through saves untouched |
 | 6a | Sanctuary-only: SupCom formats, FA install, FAF services and links removed from the product | **done** |
-| 6b | Delete the FA internals left behind (units, FA props/decals/lighting code, Lua libraries, HazardX scmap reader) | next |
+| 6b | Delete the FA internals left behind (units, FA props/decals/lighting code, Lua libraries, HazardX scmap reader) | **done**: verified in game |
+
+## FA internals deleted (6b)
+
+- **Gone:**
+  - **Systems:** units (tool, browser, controller, blueprints, strategic
+    icons), FA props and decals (with the decal renderer on both cameras), the
+    resource browser, the Lighting tab, wave generators and FAF adaptive
+    markers.
+  - **File formats:** the `.scmap` reader and writer and the SupCom model
+    reader.
+  - **Lua:** NLua, KopiLua and KeraLua, the Lua parser and writer, and every
+    Lua load/save in the scenario model.
+  - **FA game data:** the `.scd` reader, cubemaps, install paths and FAF
+    vault versioning.
+- **What remains of the FA design** is the editor's in-memory model:
+  `ScenarioLua` / `SaveLua` (armies, markers, areas, now plain data with no
+  Lua in them) and the HazardX `Map` (terrain, water, layers). Sanctuary maps
+  are loaded into it and saved out of it. Renaming and slimming it is
+  cosmetic now.
+- **Kept or moved:** the spawn rings' drawing helper moved into
+  `RenderSpawnRanges`. Text-field number parsing moved to `TextNumbers`, with
+  identical behaviour. `EnvPaths` is now only "which folder does this dialog
+  open in".
+- **Scene:** `StandaloneCleanup.RemoveFaSystems` and `RemoveMissingScripts`
+  removed the FA objects and dead components. The build has no
+  missing-script warnings.
+- **Dev tools:**
+  - `Tools~/fastcheck.mjs` compiles the Unity-generated project with dotnet
+    in seconds; regenerate it with
+    `-executeMethod Packages.Rider.Editor.RiderScriptEditor.SyncSolution`.
+  - `dropmember.mjs` and `dropenclosing.mjs` delete C# members by signature
+    or by the compiler's error lines.
+- **Size:** 180 scripts and about 31,000 lines, down from 240 scripts. This
+  is the plugin and library list after the deletions.
+- **Checked (2026-11-09):**
+  - **Opening:** Two Step Shuffle, The Forge, White Desert, Alpha 7 Quarantine
+    and a generated map open with no exceptions.
+  - **Saving:** unedited saves of Two Step Shuffle and The Forge are
+    identical to the originals, and the test edit diffs exactly.
+  - **Save As and New Map:** both work.
+  - **In game:** the test map, re-edited in place through File > Save, loads
+    in a skirmish. `Engine.SampleTerrainHeight` reads the file's 22.234 m in
+    the twice-raised square and the untouched 25.337 m outside it.
+- **Known gap:** undoing a stratum texture change reloads the layer without
+  the display colour bake (`diffuseRemap`), so it draws brighter until the map
+  is reopened. Display only; files are unaffected.
 
 ## Sanctuary-only (6a)
 

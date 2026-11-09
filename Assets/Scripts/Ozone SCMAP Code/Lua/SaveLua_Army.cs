@@ -216,24 +216,6 @@ namespace MapLua
 						ug.InstantiateGroup(childs);
 				}
 
-				public void InstantiateGroupLater(bool childs)
-				{
-
-					foreach (Unit u in Units)
-					{
-						//u.Instantiate(this);
-						if (!UnitsToLoad.Contains(u))
-						{
-							//u.Parent = this;
-							UnitsToLoad.Add(u);
-						}
-					}
-
-					if (childs)
-						foreach (UnitsGroup ug in UnitGroups)
-							ug.InstantiateGroupLater(childs);
-				}
-
 
 				public void UpdateGroupArmy(Army SourceOwner)
 				{

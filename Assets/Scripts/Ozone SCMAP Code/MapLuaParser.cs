@@ -7,7 +7,6 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using EditMap;
-using NLua;
 using MapLua;
 using UnityEngine.Events;
 
@@ -20,12 +19,6 @@ public partial class MapLuaParser : MonoBehaviour
 	public string LoadedMapFolder;
 	public ScenarioLua ScenarioLuaFile;
 	public SaveLua SaveLuaFile;
-	public TablesLua TablesLuaFile;
-	public TextAsset SaveLuaHeader;
-	public TextAsset SaveLuaFooter;
-	public TextAsset DefaultScript;
-	public TextAsset AdaptiveScript;
-	public TextAsset AdaptiveOptions;
 
 	#region Variables
 	[Header("Core")]

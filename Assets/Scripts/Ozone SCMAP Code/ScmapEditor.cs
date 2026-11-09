@@ -61,7 +61,6 @@ public partial class ScmapEditor : MonoBehaviour
 	{
 		Current = this;
 		Data = Teren.terrainData;
-		EnvPaths.CurrentGamedataPath = EnvPaths.GamedataPath;
 	}
 
 
@@ -117,7 +116,6 @@ public partial class ScmapEditor : MonoBehaviour
 		}
 
 
-		EnvPaths.CurrentGamedataPath = EnvPaths.GamedataPath;
 
 		//Shader
         MapLuaParser.Current.EditMenu.MapInfoMenu.ShaderName.SetValue(map.TerrainShader);
@@ -153,23 +151,9 @@ public partial class ScmapEditor : MonoBehaviour
 		TerrainMaterial.SetTexture("UtilitySamplerC", map.UncompressedWatermapTex);
 
 
-		for (int i = 0; i < map.EnvCubemapsFile.Length; i++)
-		{
-			if (map.EnvCubemapsName[i] == "<default>")
-			{
-
-				try
-				{
-					CurrentEnvironmentCubemap = GetGamedataFile.GetGamedataCubemap(map.EnvCubemapsFile[i]);
-					Shader.SetGlobalTexture("environmentSampler", CurrentEnvironmentCubemap);
-				}
-				catch
-				{
-					WaterMaterial.SetTexture("environmentSampler", DefaultWaterSky);
-				}
-			}
-
-		}
+		// Environment reflections: the editor's default sky (the FA map's
+		// cubemaps came from Forged Alliance's files).
+		Shader.SetGlobalTexture("environmentSampler", DefaultWaterSky);
 
 		SetWaterTextures();
 
@@ -289,110 +273,27 @@ public partial class ScmapEditor : MonoBehaviour
 	}
 
 
-	public void LoadStratumScdTextures(bool Loading = true)
-	{
-		// Load Stratum Textures Paths
-
-		if (Sanctuary.SanctuaryMapLoader.IsActive)
-		{
-			if (Loading) Sanctuary.SanctuaryMapLoader.ApplyStratumTextures();
-			return;
-		}
-
-		bool NormalMapFix = false;
-
-		for (int i = 0; i < Textures.Length; i++)
-		{
-			if (Loading)
-			{
-				MapLuaParser.Current.InfoPopup.Show(true, "Loading map...\n( Stratum textures " + (i + 1) + " )");
-
-				if (i >= map.Layers.Count)
-					map.Layers.Add(new Layer());
-
-				Textures[i].AlbedoPath = GetGamedataFile.FixMapsPath(map.Layers[i].PathTexture);
-				if (Textures[i].AlbedoPath.StartsWith("/"))
-				{
-					Textures[i].AlbedoPath = Textures[i].AlbedoPath.Remove(0, 1);
-				}		
-				Textures[i].AlbedoScale = map.Layers[i].ScaleTexture;
-
-
-				if (string.IsNullOrEmpty(map.Layers[i].PathNormalmap))
-				{
-					if (i == 9)
-					{
-						// Upper stratum normal should be empty!
-						Textures[i].NormalPath = "";
-						Debug.Log("Clear Upper stratum normal map");
-					}
-					else
-					{
-						Textures[i].NormalPath = "env/tundra/layers/tund_none_normal.dds";
-						Debug.Log("Add missing normalmap on stratum " + i);
-						NormalMapFix = true;
-					}
-				}
-				else
-				{
-					if (i == 9)
-					{
-						// Upper stratum normal should be empty!
-						Textures[i].NormalPath = "";
-						NormalMapFix = true;
-					}
-					else
-					{
-						Textures[i].NormalPath = GetGamedataFile.FixMapsPath(map.Layers[i].PathNormalmap);
-						if (Textures[i].NormalPath.StartsWith("/"))
-						{
-							Textures[i].NormalPath = Textures[i].NormalPath.Remove(0, 1);
-						}
-					}
-				}
-				Textures[i].NormalScale = map.Layers[i].ScaleNormalmap;
-			}
-
-
-			/*string Env = GetGamedataFile.EnvScd;
-			if (GetGamedataFile.IsMapPath(Textures[i].AlbedoPath))
-				Env = GetGamedataFile.MapScd;*/
-
-			try
-			{
-				Textures[i].AlbedoPath = GetGamedataFile.FindFile(Textures[i].AlbedoPath);
-				//Debug.Log("Found: " + Textures[i].AlbedoPath);
-				GetGamedataFile.LoadTextureFromGamedata(Textures[i].AlbedoPath, i, false);
-			}
-			catch (System.Exception e)
-			{
-				Debug.LogError(i + ", Albedo tex: " + Textures[i].AlbedoPath);
-				Debug.LogError(e);
-			}
-			/*Env = GetGamedataFile.EnvScd;
-			if (GetGamedataFile.IsMapPath(Textures[i].NormalPath))
-				Env = GetGamedataFile.MapScd;*/
-
-			try
-			{
-				Textures[i].NormalPath = GetGamedataFile.FindFile(Textures[i].NormalPath);
-				//Debug.Log("Found: " + Textures[i].NormalPath);
-				GetGamedataFile.LoadTextureFromGamedata(Textures[i].NormalPath, i, true);
-			}
-			catch (System.Exception e)
-			{
-				Debug.LogError(i + ", Normal tex: " + Textures[i].NormalPath);
-				Debug.LogError(e);
-			}
-		}
-
-
-		if (NormalMapFix)
-			GenericInfoPopup.ShowInfo("Fixed wrong or missing normalmap textures on stratum layers");
-	}
-
 
 #region Water
+
+	/// Stratum textures and masks of the open Sanctuary map (the FA env.scd
+	/// loader that lived here is gone).
+	public void LoadStratumScdTextures(bool Loading = true)
+	{
+		if (Loading && Sanctuary.SanctuaryMapLoader.IsActive)
+			Sanctuary.SanctuaryMapLoader.ApplyStratumTextures();
+	}
+
+	/// Water display textures: a generated depth ramp and calm water (the
+	/// game's water shading is not reproduced).
+	public void SetWaterTextures()
+	{
+		Shader.SetGlobalTexture("WaterRampSampler", Sanctuary.SanctuaryMapLoader.WaterRamp());
+		WaterMaterial.SetTexture("SkySampler", DefaultWaterSky);
+		for (int n = 0; n < 4; n++)
+			WaterMaterial.SetTexture("NormalSampler" + n, Sanctuary.SanctuaryMapLoader.CalmWaveNormal());
+		WaterMaterial.SetVector("normalRepeatRate", Vector4.one);
+	}
 	public void SetWater()
 	{
 		WaterLevel.gameObject.SetActive(map.Water.HasWater);
@@ -416,55 +317,6 @@ public partial class ScmapEditor : MonoBehaviour
 
 		Shader.SetGlobalFloat("WaterElevation", map.Water.Elevation / 10.0f);
 		Shader.SetGlobalInt("_Water", map.Water.HasWater ? 1 : 0);
-	}
-
-	public void SetWaterTextures()
-	{
-		if (Sanctuary.SanctuaryMapLoader.IsActive)
-		{
-			// FA's ramp, cubemap and wave normals live in FA's env.scd. A
-			// Sanctuary map gets a generated depth ramp and calm water.
-			Shader.SetGlobalTexture("WaterRampSampler", Sanctuary.SanctuaryMapLoader.WaterRamp());
-			WaterMaterial.SetTexture("SkySampler", DefaultWaterSky);
-			for (int n = 0; n < 4; n++)
-				WaterMaterial.SetTexture("NormalSampler" + n, Sanctuary.SanctuaryMapLoader.CalmWaveNormal());
-			return;
-		}
-
-		Texture2D WaterRamp = GetGamedataFile.LoadTexture2D(map.Water.TexPathWaterRamp, false, true, true);
-		WaterRamp.wrapMode = TextureWrapMode.Clamp;
-		Shader.SetGlobalTexture("WaterRampSampler", WaterRamp);
-
-		try
-		{
-			Cubemap WaterReflection = GetGamedataFile.GetGamedataCubemap(map.Water.TexPathCubemap);
-			WaterMaterial.SetTexture("SkySampler", WaterReflection);
-		}
-		catch
-		{
-			WaterMaterial.SetTexture("SkySampler", DefaultWaterSky);
-		}
-
-		const int WaterAnisoLevel = 4;
-
-		Texture2D WaterNormal = GetGamedataFile.LoadTexture2D(map.Water.WaveTextures[0].TexPath, false, true, true);
-		WaterNormal.anisoLevel = WaterAnisoLevel;
-		WaterMaterial.SetTexture("NormalSampler0", WaterNormal);
-		WaterNormal = GetGamedataFile.LoadTexture2D(map.Water.WaveTextures[1].TexPath, false, true, true);
-		WaterNormal.anisoLevel = WaterAnisoLevel;
-		WaterMaterial.SetTexture("NormalSampler1", WaterNormal);
-		WaterNormal = GetGamedataFile.LoadTexture2D(map.Water.WaveTextures[2].TexPath, false, true, true);
-		WaterNormal.anisoLevel = WaterAnisoLevel;
-		WaterMaterial.SetTexture("NormalSampler2", WaterNormal);
-		WaterNormal = GetGamedataFile.LoadTexture2D(map.Water.WaveTextures[3].TexPath, false, true, true);
-		WaterNormal.anisoLevel = WaterAnisoLevel;
-		WaterMaterial.SetTexture("NormalSampler3", WaterNormal);
-
-		WaterMaterial.SetVector("normal1Movement", map.Water.WaveTextures[0].NormalMovement);
-		WaterMaterial.SetVector("normal2Movement", map.Water.WaveTextures[1].NormalMovement);
-		WaterMaterial.SetVector("normal3Movement", map.Water.WaveTextures[2].NormalMovement);
-		WaterMaterial.SetVector("normal4Movement", map.Water.WaveTextures[3].NormalMovement);
-        WaterMaterial.SetVector("normalRepeatRate", new Vector4(map.Water.WaveTextures[0].NormalRepeat, map.Water.WaveTextures[1].NormalRepeat, map.Water.WaveTextures[2].NormalRepeat, map.Water.WaveTextures[3].NormalRepeat));
 	}
 
 #endregion
@@ -684,34 +536,6 @@ public partial class ScmapEditor : MonoBehaviour
 	public const double HeightResize = 32768.0; //512 * 40;
 	//public const double RoundingError = 0.5;
 	public const float MaxElevation = 256;
-
-	private void FixCustomAssetsPaths()
-	{
-		for (int i = 0; i < map.Layers.Count; i++)
-		{
-			Textures[i].AlbedoPath = GetGamedataFile.FixMapsPath(Textures[i].AlbedoPath);
-			Textures[i].NormalPath = GetGamedataFile.FixMapsPath(Textures[i].NormalPath);
-
-			map.Layers[i].PathTexture = Textures[i].AlbedoPath;
-			map.Layers[i].PathNormalmap = Textures[i].NormalPath;
-
-			map.Layers[i].ScaleTexture = Textures[i].AlbedoScale;
-			map.Layers[i].ScaleNormalmap = Textures[i].NormalScale;
-		}
-		
-		for (int i = 0; i < map.EnvCubemapsFile.Length; i++)
-		{
-			map.EnvCubemapsFile[i] = GetGamedataFile.FixMapsPath(map.EnvCubemapsFile[i]);
-		}
-		
-		map.Water.TexPathWaterRamp = GetGamedataFile.FixMapsPath(map.Water.TexPathWaterRamp);
-		map.Water.TexPathCubemap = GetGamedataFile.FixMapsPath(map.Water.TexPathCubemap);
-		
-		for (int i = 0; i < 4; i++)
-		{
-			map.Water.WaveTextures[i].TexPath = GetGamedataFile.FixMapsPath(map.Water.WaveTextures[i].TexPath);
-		}
-	}
 
 #endregion
 

@@ -82,55 +82,6 @@ public partial struct GetGamedataFile
 	}
 
 
-	public static Texture2D LoadTexture2D(string LocalPath, bool NormalMap = false, bool StoreInMemory = true, bool SetUnreadable = false)
-	{
-		LocalPath = LocalPath.ToLower();
-
-		if (string.IsNullOrEmpty(LocalPath))
-		{
-			if (NormalMap)
-				return emptyNormalTexture;
-			else
-				return Texture2D.whiteTexture;
-
-		}
-
-		//scd + "_" + 
-		string TextureKey = LocalPath;
-
-		if (LoadedTextures.ContainsKey(TextureKey))
-		{
-			if (LoadedTextures[TextureKey] != null)
-				return LoadedTextures[TextureKey];
-			else
-				LoadedTextures.Remove(TextureKey);
-		}
-
-		if (DebugTextureLoad)
-			Debug.Log(LocalPath);
-
-		byte[] FinalTextureData2 = LoadBytes(LocalPath);
-
-		if (FinalTextureData2 == null || FinalTextureData2.Length == 0)
-		{
-			FinalTextureData2 = null;
-
-			//Debug.LogWarning("File bytes are empty! " + LocalPath);
-			if (NormalMap)
-				return emptyNormalTexture;
-			else
-				return Texture2D.whiteTexture;
-		}
-
-		Texture2D texture = TextureFromDdsBytes(FinalTextureData2, LocalPath, SetUnreadable);
-		FinalTextureData2 = null;
-
-		if (StoreInMemory)
-			texture = AddToMemory(TextureKey, ref texture);
-
-		return texture;
-	}
-
 	/// Decodes a whole .dds file. Shared by the FA gamedata loader and the
 	/// Sanctuary texture loader (Sanctuary.SanGamedata).
 	public static Texture2D TextureFromDdsBytes(byte[] FinalTextureData2, string debugName, bool SetUnreadable = false)
@@ -201,7 +152,7 @@ public partial struct GetGamedataFile
 	{
 		if (NormalMap)
 		{
-			ScmapEditor.Current.Textures[Id].Normal = LoadTexture2D(LocalPath, NormalMap, false, false);
+			ScmapEditor.Current.Textures[Id].Normal = Sanctuary.SanGamedata.LoadTexture(LocalPath, NormalMap);
 
 			if (ScmapEditor.Current.Textures[Id].Normal == null)
 			{
@@ -216,7 +167,7 @@ public partial struct GetGamedataFile
 		}
 		else
 		{
-			ScmapEditor.Current.Textures[Id].Albedo = LoadTexture2D(LocalPath, NormalMap, false, false);
+			ScmapEditor.Current.Textures[Id].Albedo = Sanctuary.SanGamedata.LoadTexture(LocalPath, NormalMap);
 
 			if(ScmapEditor.Current.Textures[Id].Albedo == null)
 			{
