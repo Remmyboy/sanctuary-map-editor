@@ -454,6 +454,12 @@ public partial class MapLuaParser : MonoBehaviour
 
 		BackupFiles = Backup;
 
+		if (Sanctuary.SanctuaryMapLoader.IsActive)
+		{
+			StartCoroutine(Sanctuary.SanctuaryMapSaver.Save());
+			return;
+		}
+
 		Debug.Log("Save map");
 
 		SavingMapProcess = true;

@@ -22,6 +22,8 @@ static class Program
 
 	static int Main(string[] args)
 	{
+		if (args.Length == 3 && args[0] == "--diff") return Diff(args[1], args[2]);
+
 		string mapsDir = DefaultMaps;
 		int textureMaps = 4;
 		string only = null;
@@ -144,6 +146,86 @@ static class Program
 		Console.WriteLine();
 		Console.WriteLine($"{dirs.Count} maps, {texDone} with textures checked, {failures} failure(s), {sw.Elapsed.TotalSeconds:0}s");
 		return failures == 0 ? 0 : 1;
+	}
+
+	/// --diff A B: what differs between two map folders. JSON by path,
+	/// heightmap and TGAs by changed cells/pixels with their bounding box,
+	/// every other file by bytes.
+	static int Diff(string a, string b)
+	{
+		var fa = SanMapFolder.Open(a);
+		var fb = SanMapFolder.Open(b);
+		Console.WriteLine($"A {fa.Directory}\nB {fb.Directory}");
+
+		var ja = JToken.Parse(File.ReadAllText(fa.SanmapPath));
+		var jb = JToken.Parse(File.ReadAllText(fb.SanmapPath));
+		var paths = new List<string>();
+		JsonDiffs(ja, jb, "$", paths);
+		Console.WriteLine($"json: {paths.Count} difference(s)");
+		foreach (var p in paths.Take(30)) Console.WriteLine("  " + p);
+
+		var ha = fa.Heightmap; var hb = fb.Heightmap;
+		if (ha.Resolution != hb.Resolution) Console.WriteLine($"heightmap: resolution {ha.Resolution} vs {hb.Resolution}");
+		else
+		{
+			int n = 0, x0 = int.MaxValue, y0 = int.MaxValue, x1 = -1, y1 = -1; double maxM = 0;
+			for (int y = 0; y < ha.Resolution; y++)
+				for (int x = 0; x < ha.Resolution; x++)
+				{
+					int d = hb.GetRaw(x, y) - ha.GetRaw(x, y);
+					if (d == 0) continue;
+					n++; x0 = Math.Min(x0, x); y0 = Math.Min(y0, y); x1 = Math.Max(x1, x); y1 = Math.Max(y1, y);
+					maxM = Math.Max(maxM, Math.Abs(d) / SanHeightmap.RawScale * fa.Map.Height);
+				}
+			Console.WriteLine(n == 0 ? "heightmap: identical" : $"heightmap: {n} cells changed in unity rows {y0}-{y1}, cols {x0}-{x1}; largest change {maxM:0.00} m");
+		}
+
+		foreach (var name in SanMapFolder.TextureNames)
+		{
+			string pa = Path.Combine(fa.TexturesPath, name + ".tga"), pb = Path.Combine(fb.TexturesPath, name + ".tga");
+			if (!File.Exists(pa) || !File.Exists(pb)) { Console.WriteLine($"{name}: missing in {(File.Exists(pa) ? "B" : "A")}"); continue; }
+			if (SameBytes(pa, pb)) { Console.WriteLine($"{name}: identical"); continue; }
+			var ta = SanTga.Read(pa); var tb = SanTga.Read(pb);
+			int n = 0, x0 = int.MaxValue, y0 = int.MaxValue, x1 = -1, y1 = -1;
+			for (int y = 0; y < ta.Height; y++)
+				for (int x = 0; x < ta.Width; x++)
+				{
+					int oa = ta.Offset(x, y), ob = tb.Offset(x, y);
+					if (ta.Pixels[oa] == tb.Pixels[ob] && ta.Pixels[oa + 1] == tb.Pixels[ob + 1] && ta.Pixels[oa + 2] == tb.Pixels[ob + 2] && ta.Pixels[oa + 3] == tb.Pixels[ob + 3]) continue;
+					n++; x0 = Math.Min(x0, x); y0 = Math.Min(y0, y); x1 = Math.Max(x1, x); y1 = Math.Max(y1, y);
+				}
+			Console.WriteLine(n == 0 ? $"{name}: same pixels, header differs" : $"{name}: {n} pixels changed in rows {y0}-{y1}, cols {x0}-{x1}");
+		}
+
+		foreach (var file in Directory.GetFiles(fa.Directory, "*", SearchOption.AllDirectories))
+		{
+			string rel = Path.GetRelativePath(fa.Directory, file);
+			if (rel.EndsWith(".sanmap") || rel.EndsWith(".tga") || rel.EndsWith(".raw")) continue;
+			string other = Path.Combine(fb.Directory, rel);
+			if (!File.Exists(other)) Console.WriteLine($"{rel}: missing in B");
+			else if (!SameBytes(file, other)) Console.WriteLine($"{rel}: differs");
+		}
+		return 0;
+	}
+
+	static void JsonDiffs(JToken a, JToken b, string path, List<string> outList)
+	{
+		if (JToken.DeepEquals(a, b)) return;
+		if (a is JObject oa && b is JObject ob)
+		{
+			foreach (var p in oa.Properties())
+				if (!ob.ContainsKey(p.Name)) outList.Add($"{path}.{p.Name} removed");
+				else JsonDiffs(p.Value, ob[p.Name], path + "." + p.Name, outList);
+			foreach (var p in ob.Properties()) if (!oa.ContainsKey(p.Name)) outList.Add($"{path}.{p.Name} added");
+			return;
+		}
+		if (a is JArray aa && b is JArray ab && aa.Count == ab.Count)
+		{
+			for (int i = 0; i < aa.Count; i++) JsonDiffs(aa[i], ab[i], $"{path}[{i}]", outList);
+			return;
+		}
+		string sa = a.ToString(Newtonsoft.Json.Formatting.None), sb = b.ToString(Newtonsoft.Json.Formatting.None);
+		outList.Add($"{path}: {(sa.Length > 60 ? sa.Substring(0, 60) + "..." : sa)} -> {(sb.Length > 60 ? sb.Substring(0, 60) + "..." : sb)}");
 	}
 
 	/// Bilinear terrain height in metres at world (x, z): Unity terrain at the

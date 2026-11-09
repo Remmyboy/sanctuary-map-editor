@@ -18,7 +18,7 @@ the texture and prop libraries, which it reads from a Forged Alliance install.
 | 1 | `.sanmap` format layer, no Unity dependency | **done**, tested on 150 maps |
 | 1b | Project on Unity 6000.3 LTS, headless build | **done**: compiles clean, builds, launches |
 | 2 | Open a `.sanmap` in the editor: terrain, water, markers, playable area | **done** (see below) |
-| 3 | Save back: heightmap, stratum masks, markers, unedited fields kept | |
+| 3 | Save back: heightmap, stratum masks, markers, unedited fields kept | **done**: verified in game |
 | 4 | Terrain rendering close to the game's `RTS/TerrainLit` (9 layers: albedo, normal, mask, tiling, `diffuseRemap`) | |
 | 5 | Sanctuary texture and prop libraries (`Environment.sanpack`, `.santp`, `.sanmodel`) | |
 | 6 | Remove or hide FA-only tools: units, AI markers, Lua scenario scripts, FAF vault upload, Neroxis generator | |
@@ -135,7 +135,72 @@ Two upstream bugs fixed along the way:
   different sizes or mip counts.
 - **Loading popup:** it no longer throws a null reference when infos are queued.
 
-## Phase 3 onwards: where the seams are
+### Colours
+
+The game draws each stratum as albedo × `diffuseRemap`, and the remap carries
+most of the colour (The Forge's sand texture is nearly white; its remap is a
+dark tan). `SanctuaryMapLoader.BakeDiffuseRemap` bakes that product into the
+copy of each layer shown on screen, under neutral light built from the map's
+sun temperature and tint. Ambient is a 10000 K daylight sky, because every
+shipped map has `skylightIntensity` 0, so the game takes ambient from the
+skybox. A fixed share of sky haze is added on top. This was calibrated against
+the game's own `preview.png` with `Tools~/compare-preview.ps1`. Mean colour,
+editor/preview, red/green/blue:
+
+| Map | Red | Green | Blue |
+|---|---|---|---|
+| The Forge | 0.88 | 0.94 | 0.96 |
+| Two Step Shuffle | 1.14 | 1.15 | 0.97 |
+| There Is Time (not tuned on) | 0.82 | 0.79 | 0.82 |
+| White Desert | 0.86 | 0.98 | 1.05 |
+
+White Desert's hue still leans grey where the game is pinkish tan.
+Overrides: `-remapgain -ambient -sunlevel -haze -hazebright`.
+
+## Phase 3: saving
+
+**File > Save** on a Sanctuary map runs `SanctuaryMapSaver` instead of the FA
+writer. It first copies the files it rewrites to
+`%LOCALAPPDATA%\SanctuaryMapEditor\Backups\<map>\<time>\`. It writes the
+heightmap, both stratum masks, markers (spawns, resource markers), armies,
+`PlayableArea`, water level, name and description. Everything else in the
+`.sanmap` passes through. FA-only marker types (AI, camera, ...) are not
+saved, and the report names them.
+
+Nothing the editor didn't change gets rewritten:
+
+- **Heightmap:** cells still equal to the terrain as loaded keep their
+  original 16-bit value, so Unity's internal height precision never leaks in.
+- **Masks:** unpainted pixels keep their bytes.
+- **Markers, area and water:** an axis the editor didn't move keeps its
+  original double.
+
+Checks, with `-testedit` (a fixed edit: 40×40 cells raised 5 m, a 16×16
+mask square set to layer 1, the first spawn moved 8 m east), `-saveto <dir>`
+and `dotnet run --project Tools~/SanFormatTests -- --diff <original> <saved>`:
+
+- **Unedited save** (Two Step Shuffle, Alpha 7 Quarantine, The Forge):
+  the JSON is identical and the heightmap and all four TGAs are
+  byte-identical.
+- **Edited save** (the same three maps): the diff shows exactly the 1600
+  raised cells (5.00 m; 4.98 m on The Forge, whose 1600 m height scale makes
+  Unity's step about 0.05 m), the mask square, and the one marker `x`. Nothing
+  else changed.
+- **In game** (2026-11-09): the edited Two Step Shuffle, saved into the
+  game's Maps folder, shows in the map list and starts a skirmish against
+  the AI. `Engine.SampleTerrainHeight` reads 17.229 m inside the raised square
+  (12.224 m on the original map) and 25.337 m outside it (unchanged), matching
+  the file. The raised square shows in the central crater.
+
+Not yet:
+
+- **Save as:** only on the command line (`-saveto`); the menu has no
+  Sanctuary "Save as".
+- **Preview:** `preview.png` isn't regenerated.
+- **Manual testing:** saving through the menu by hand is untested; every check
+  above ran from the command line.
+
+## Phase 4 onwards: where the seams are
 
 - **Load:** `MapLuaParser.LoadingFile` refuses anything without a
   `version = 3` scenario `.lua` and an FA `env.scd`. Add a `.sanmap` branch

@@ -51,13 +51,18 @@ public partial class MapLuaParser : MonoBehaviour
 		yield return null;
 		yield return StartCoroutine(Sanctuary.SanctuaryMapLoader.Load(path));
 
-		string shot = null;
-		bool quit = false;
+		string shot = null, saveTo = null;
+		bool quit = false, testEdit = false;
 		for (int i = 1; i < Args.Length; i++)
 		{
 			if (Args[i] == "-screenshot" && i + 1 < Args.Length) shot = Args[i + 1];
+			if (Args[i] == "-saveto" && i + 1 < Args.Length) saveTo = Args[i + 1];
+			if (Args[i] == "-testedit") testEdit = true;
 			if (Args[i] == "-quit") quit = true;
 		}
+		if (testEdit) Sanctuary.SanctuaryTestEdit.Apply();
+		if (saveTo != null && Sanctuary.SanctuaryMapLoader.IsActive)
+			yield return StartCoroutine(Sanctuary.SanctuaryMapSaver.Save(saveTo));
 		if (shot != null)
 		{
 			for (int f = 0; f < 30; f++) yield return null;

@@ -31,13 +31,17 @@ namespace Sanctuary
 		/// Terrain extent in metres the editor uses (heightmap resolution - 1).
 		public static int Size { get; private set; }
 
-		/// Marker name -> whether it came from a resource type, for saving.
+		/// Marker name -> the .sanmap marker type it was loaded from, for saving.
 		public static readonly Dictionary<string, string> MarkerSourceType = new Dictionary<string, string>();
+
+		/// Unity terrain heights right after load (see ScmapEditor.LoadHeights).
+		public static float[,] TerrainAtLoad;
 
 		public static void Clear()
 		{
 			Folder = null;
 			MarkerSourceType.Clear();
+			TerrainAtLoad = null;
 		}
 
 		public static bool IsSanmapPath(string path) =>

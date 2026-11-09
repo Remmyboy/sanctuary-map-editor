@@ -259,6 +259,9 @@ public partial class ScmapEditor : MonoBehaviour
 			heightsLength = xRes + 1;
 			heights = Sanctuary.SanctuaryMapLoader.Folder.Heightmap.ToUnityHeights();
 			ApplyHeightmap(false);
+			// What Unity actually stores, so saving can tell edited cells
+			// from untouched ones without depending on its internal precision.
+			Sanctuary.SanctuaryMapLoader.TerrainAtLoad = Data.GetHeights(0, 0, Data.heightmapResolution, Data.heightmapResolution);
 
 			GenerateControlTex.StopAllTasks();
 			GenerateControlTex.GenerateNormal();
