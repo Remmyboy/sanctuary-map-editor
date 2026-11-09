@@ -6,7 +6,7 @@ using System;
 
 public class EditorVersion : MonoBehaviour
 {
-	private const string EditorBuildVersion = "v0.2"; // Sanctuary Map Editor; the FAF editor it grew from was v1.2
+	private const string EditorBuildVersion = "v0.2.1"; // Sanctuary Map Editor; the FAF editor it grew from was v1.2
 	private const string EditorPrereleaseTag = "";  // add rcX here for release candidates
 	private static string FoundUrl;
 	public bool SearchForNew = true;
@@ -56,33 +56,23 @@ public class EditorVersion : MonoBehaviour
 
 	static bool shouldUpdate(string LatestRelease)
 	{
-		double Latest = Math.Round(BuildFloat(LatestRelease), 3);
-		double Current = Math.Round(BuildFloat(EditorBuildVersion), 3);
-		if (Latest == 0 || Current == 0) return false;
-		if (EditorPrereleaseTag.Length > 0) Current -= 0.0001;
-                    
-		return Current < Latest;
+		// Tags are v0.2, v0.2.1, ...: compare them as versions, not floats.
+		Version latest = ParseTag(LatestRelease), current = ParseTag(EditorBuildVersion);
+		if (latest == null || current == null) return false;
+		int c = current.CompareTo(latest);
+		return c < 0 || (c == 0 && EditorPrereleaseTag.Length > 0);
 	}
 
-	static string CleanBuildVersion(string tag)
+	static Version ParseTag(string tag)
 	{
-		return tag.ToLower().Replace(" ", "").Replace("v", "");
+		string s = tag.ToLower().Replace(" ", "").TrimStart('v');
+		int dash = s.IndexOf('-');
+		if (dash >= 0) s = s.Substring(0, dash);
+		if (!s.Contains(".")) s += ".0";
+		if (Version.TryParse(s, out Version v)) return v;
+		Debug.LogWarning("Can't read a version from release tag: " + tag);
+		return null;
 	}
-
-	static float BuildFloat(string tag)
-	{
-        string ToParse = CleanBuildVersion(tag);
-
-        if (float.TryParse(ToParse, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out float Found))
-        {
-            return Found;
-        }
-        else
-        {
-            Debug.LogWarning("Wrong tag! Cant parse build version to float! Tag: " + ToParse);
-            return 0;
-        }
-    }
 
 	public void DownloadLatest()
 	{
