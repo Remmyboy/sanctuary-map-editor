@@ -139,12 +139,18 @@ namespace Sanctuary
 			map.TerrainShader = "TTerrainXP";
 			map.Water.HasWater = m.HasWater;
 			map.Water.Elevation = (float)m.WaterLevel;
-			map.Water.ElevationDeep = (float)(m.WaterLevel - m.WaterDepth);
-			map.Water.ElevationAbyss = (float)(m.WaterLevel - 2 * m.WaterDepth);
+			// The FA shader tints water by depth between these levels. The
+			// map's waterDepth (1-2.5 m) is a shore setting, not the sea's
+			// depth; spanning to the actual sea floor gives the light shelves
+			// and dark open water of the game's previews.
+			float floor = LowestHeight(heights, m.Height);
+			float span = Mathf.Max(4f, (float)m.WaterLevel - floor);
+			map.Water.ElevationDeep = (float)m.WaterLevel - span * WaterDeepShare;
+			map.Water.ElevationAbyss = (float)m.WaterLevel - span;
 			// Depth tint for the FA water shader: lerp toward this colour by
 			// depth, clamped to ColorLerp.
-			map.Water.SurfaceColor = new Vector3(0.07f, 0.2f, 0.26f);
-			map.Water.ColorLerp = new Vector2(0.25f, 0.85f);
+			map.Water.SurfaceColor = new Vector3(WaterColor.r, WaterColor.g, WaterColor.b);
+			map.Water.ColorLerp = new Vector2(WaterLerpMin, WaterLerpMax);
 			ApplyLighting(m, map);
 			ScmapEditor.Current.map = map;
 
@@ -259,15 +265,29 @@ namespace Sanctuary
 		/// Display calibration, set by matching editor screenshots to the
 		/// game's own preview.png (Tools~/compare-preview.ps1). Overridable
 		/// on the command line: -remapgain, -ambient.
-		public static float RemapGain = 2f;
+		public static float RemapGain = 1.2f;
 		public static float AmbientLevel = 0.6f;
 		public static float SunLevel = 0.8f;
 		/// The game's height and distance fog give its overhead views a cool
 		/// haze; the FA shader's fog uniforms are never set by the editor, so
 		/// a fixed share of sky-coloured haze is baked into the displayed
 		/// layers instead.
-		public static float HazeLevel = 0.25f;
+		public static float HazeLevel = 0.1f;
 		public static float HazeBright = 0.7f;
+
+		/// Water display (FA shader): colour approached with depth, the
+		/// clamp of that blend, and where "deep" starts as a share of the
+		/// water column. Read off The Forge's preview: open sea ~(30,61,69),
+		/// shelves ~(65,92,102).
+		public static Color WaterColor = new Color(0.10f, 0.22f, 0.25f);
+		public static float WaterLerpMin = 0.6f, WaterLerpMax = 0.95f, WaterDeepShare = 0.2f;
+
+		static float LowestHeight(SanHeightmap h, int mapHeight)
+		{
+			ushort lo = ushort.MaxValue;
+			foreach (var v in h.Raw) if (v < lo) lo = v;
+			return lo / SanHeightmap.RawScale * mapHeight;
+		}
 
 		/// Ambient colour. Every shipped developer map has skylightIntensity
 		/// 0 (White Desert's 1500 K sky would otherwise paint it orange): its
@@ -278,6 +298,19 @@ namespace Sanctuary
 			double intensity = m.Json.Value<double?>("skylightIntensity").GetValueOrDefault(0);
 			if (intensity <= 0) return Kelvin(10000f);
 			return Kelvin((float)m.Json.Value<double?>("skylightTemperature").GetValueOrDefault(9000)) * Tint(m, "skylightTint");
+		}
+
+		/// The haze takes the map's backgroundColor (the colour its fog
+		/// fades to), normalised to its brightest channel: neutral grey on
+		/// most shipped maps, warm (2.29, 1.28, 0.79) on White Desert, whose
+		/// previews read pink for it.
+		static Color HazeColor(SanMapDocument m)
+		{
+			var c = m.Json["backgroundColor"] as JObject;
+			if (c == null) return SkyColor(m);
+			var col = new Color(c.Value<float?>("r") ?? 1, c.Value<float?>("g") ?? 1, c.Value<float?>("b") ?? 1, 1);
+			float max = Mathf.Max(col.r, Mathf.Max(col.g, col.b));
+			return max > 0 ? col / max : SkyColor(m);
 		}
 
 		static Color Tint(SanMapDocument m, string key)
@@ -310,6 +343,9 @@ namespace Sanctuary
 				if (a[i] == "-sunlevel") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out SunLevel);
 				if (a[i] == "-haze") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out HazeLevel);
 				if (a[i] == "-hazebright") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out HazeBright);
+				if (a[i] == "-waterlerp") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out WaterLerpMax);
+				if (a[i] == "-waterlerpmin") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out WaterLerpMin);
+				if (a[i] == "-waterdeep") float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out WaterDeepShare);
 			}
 		}
 
@@ -412,9 +448,11 @@ namespace Sanctuary
 			// the same packing as FA's two texture maps.
 			try
 			{
-				map.TexturemapTex = SanGamedata.TgaToTexture(Folder.GetTexture("stratums_1_4"), true, false);
-				map.TexturemapTex2 = SanGamedata.TgaToTexture(Folder.GetTexture("stratums_5_8"), true, false);
-				map.TexturemapTex.wrapMode = map.TexturemapTex2.wrapMode = TextureWrapMode.Clamp;
+				// North in row 0, as the FA shader and painter expect (the
+				// first version left them south-up: every layer drew mirrored
+				// north-south - rock off its cliffs, sand off its beaches).
+				map.TexturemapTex = SanGamedata.TgaToTexture(Folder.GetTexture("stratums_1_4"), true, false, northUp: true);
+				map.TexturemapTex2 = SanGamedata.TgaToTexture(Folder.GetTexture("stratums_5_8"), true, false, northUp: true);
 			}
 			catch (Exception e)
 			{
@@ -452,7 +490,7 @@ namespace Sanctuary
 			// One gain for every map: normalising per map made light maps
 			// (Two Step Shuffle) 1.7x too bright against the game's preview.
 			float gain = RemapGain;
-			Color haze = SkyColor(m) * HazeBright;
+			Color haze = HazeColor(m) * HazeBright;
 			float h = Mathf.Clamp01(HazeLevel), keep = 1f - h;
 
 			for (int i = 0; i < n; i++)
@@ -460,14 +498,22 @@ namespace Sanctuary
 				if (!use[i]) continue;
 				var src = ed.Textures[i].Albedo;
 				Color k = remaps[i] * gain;
+				// diffuseRemap is a linear-light multiplier (the game's editor
+				// stores colour.linear into it; the shader gets it as
+				// _DiffuseRemapScale), so the product is taken in linear and
+				// converted back. Multiplying sRGB values by it - the first
+				// version - crushed dark remaps: The Forge's sand (0.26) came
+				// out dark brown where the game draws it pale.
 				var px = src.GetPixels(0);
+				Color hz = haze.linear;
 				for (int p = 0; p < px.Length; p++)
 				{
-					var c = px[p];
-					px[p] = new Color(
-						Mathf.Clamp01(c.r * k.r * keep + haze.r * h),
-						Mathf.Clamp01(c.g * k.g * keep + haze.g * h),
-						Mathf.Clamp01(c.b * k.b * keep + haze.b * h), c.a);
+					var c = px[p].linear;
+					var o = new Color(
+						c.r * k.r * keep + hz.r * h,
+						c.g * k.g * keep + hz.g * h,
+						c.b * k.b * keep + hz.b * h, 1f).gamma;
+					px[p] = new Color(Mathf.Clamp01(o.r), Mathf.Clamp01(o.g), Mathf.Clamp01(o.b), px[p].a);
 				}
 				var baked = new Texture2D(src.width, src.height, TextureFormat.RGBA32, true, false)
 				{

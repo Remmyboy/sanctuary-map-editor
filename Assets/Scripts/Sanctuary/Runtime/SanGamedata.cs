@@ -190,13 +190,16 @@ namespace Sanctuary
 
 		/// A Unity texture from a map TGA. Unity row 0 is the bottom row,
 		/// which is what SanTga's accessors count from.
-		public static Texture2D TgaToTexture(SanTga tga, bool linear, bool mipmaps)
+		/// `northUp` puts the north edge in texture row 0, which is what the
+		/// FA terrain shader samples (v = -10 z / L); the game's own row 0 is
+		/// the south edge.
+		public static Texture2D TgaToTexture(SanTga tga, bool linear, bool mipmaps, bool northUp = false)
 		{
 			int w = tga.Width, h = tga.Height;
 			var rgba = new byte[w * h * 4];
 			for (int y = 0; y < h; y++)
 			{
-				int src = tga.Offset(0, y);
+				int src = tga.Offset(0, northUp ? h - 1 - y : y);
 				int dst = y * w * 4;
 				for (int x = 0; x < w; x++, src += 4, dst += 4)
 				{
@@ -213,7 +216,7 @@ namespace Sanctuary
 		}
 
 		/// The reverse, for saving painted masks back into the map's TGA.
-		public static void TextureToTga(Texture2D tex, SanTga tga)
+		public static void TextureToTga(Texture2D tex, SanTga tga, bool northUp = false)
 		{
 			if (tex.width != tga.Width || tex.height != tga.Height)
 				throw new ArgumentException($"texture {tex.width}x{tex.height} does not match TGA {tga.Width}x{tga.Height}");
@@ -221,7 +224,7 @@ namespace Sanctuary
 			int w = tga.Width;
 			for (int y = 0; y < tga.Height; y++)
 			{
-				int dst = tga.Offset(0, y);
+				int dst = tga.Offset(0, northUp ? tga.Height - 1 - y : y);
 				int src = y * w;
 				for (int x = 0; x < w; x++, src++, dst += 4)
 				{

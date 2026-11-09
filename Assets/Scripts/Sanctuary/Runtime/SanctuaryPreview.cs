@@ -66,9 +66,11 @@ namespace Sanctuary
 					sum += Mathf.Max(ter.SampleHeight(p) + ter.transform.position.y, water); n++;
 				}
 
-			var tex = ScmapEditor.Current.PreviewRenderer.RenderPreviewOrtho(center, side / 10f, size, size, top, sum / n);
-
-			var px = tex.GetPixels32();
+			// Rendered at 2x and box-filtered down: at 1x the strata's detail
+			// (sand ripples, heather patches) went to mush next to the game's.
+			const int ss = 2;
+			var tex = ScmapEditor.Current.PreviewRenderer.RenderPreviewOrtho(center, side / 10f, size * ss, size * ss, top, sum / n);
+			var px = Downsample(tex.GetPixels32(), size * ss, ss);
 			int i = 0;
 			foreach (var army in m.ArmyNames)
 			{
@@ -88,6 +90,26 @@ namespace Sanctuary
 			UnityEngine.Object.Destroy(rgb);
 			UnityEngine.Object.Destroy(tex);
 			return path;
+		}
+
+		static Color32[] Downsample(Color32[] src, int srcSize, int f)
+		{
+			int dst = srcSize / f;
+			var o = new Color32[dst * dst];
+			int n = f * f;
+			for (int y = 0; y < dst; y++)
+				for (int x = 0; x < dst; x++)
+				{
+					int r = 0, g = 0, b = 0;
+					for (int dy = 0; dy < f; dy++)
+						for (int dx = 0; dx < f; dx++)
+						{
+							var c = src[(y * f + dy) * srcSize + x * f + dx];
+							r += c.r; g += c.g; b += c.b;
+						}
+					o[y * dst + x] = new Color32((byte)(r / n), (byte)(g / n), (byte)(b / n), 255);
+				}
+			return o;
 		}
 
 		static int ExistingSize(string path)

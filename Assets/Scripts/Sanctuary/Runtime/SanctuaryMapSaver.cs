@@ -175,8 +175,8 @@ namespace Sanctuary
 		static void WriteMasks(SanMapFolder folder)
 		{
 			var map = ScmapEditor.Current.map;
-			SanGamedata.TextureToTga(map.TexturemapTex, folder.GetTexture("stratums_1_4"));
-			SanGamedata.TextureToTga(map.TexturemapTex2, folder.GetTexture("stratums_5_8"));
+			SanGamedata.TextureToTga(map.TexturemapTex, folder.GetTexture("stratums_1_4"), northUp: true);
+			SanGamedata.TextureToTga(map.TexturemapTex2, folder.GetTexture("stratums_5_8"), northUp: true);
 		}
 
 		// ---- scenario ----------------------------------------------------
