@@ -16,6 +16,16 @@ public partial class MapLuaParser : MonoBehaviour
 				EnvPaths.SetInstallationPath(Args[2]);
 			}
 
+		// -sanmap <folder or .sanmap> [-screenshot <png>] [-quit]
+		for (int i = 1; i < Args.Length - 1; i++)
+		{
+			if (Args[i] == "-sanmap")
+			{
+				StartCoroutine(OpenSanmapFromCommandLine(Args[i + 1]));
+				break;
+			}
+		}
+
 		if (Args.Length >= 6)
 		{
 			if (Args[1] == "-renderPreviewImage" || Args[1] == "-renderPreviewImageNoProps" || Args[1] == "-renderPreviewImageNoDecals" || Args[1] == "-renderPreviewImageNoPropsDecals")
@@ -32,6 +42,32 @@ public partial class MapLuaParser : MonoBehaviour
 				StartCoroutine(RenderImageAndClose(Props, Decals, Widht, Height, Args[4], Args[5]));
 			}
 		}
+	}
+
+	IEnumerator OpenSanmapFromCommandLine(string path)
+	{
+		// Let the preload scene and UI settle first.
+		yield return null;
+		yield return null;
+		yield return StartCoroutine(Sanctuary.SanctuaryMapLoader.Load(path));
+
+		string shot = null;
+		bool quit = false;
+		for (int i = 1; i < Args.Length; i++)
+		{
+			if (Args[i] == "-screenshot" && i + 1 < Args.Length) shot = Args[i + 1];
+			if (Args[i] == "-quit") quit = true;
+		}
+		if (shot != null)
+		{
+			for (int f = 0; f < 30; f++) yield return null;
+			yield return new WaitForEndOfFrame();
+			ScreenCapture.CaptureScreenshot(shot);
+			yield return null;
+			yield return null;
+			Debug.Log("Screenshot: " + shot);
+		}
+		if (quit) OnFafEditorQuit.ForceQuit();
 	}
 
 	public IEnumerator RenderImageAndClose(bool Props, bool Decals, int Width, int Height, string MapPath, string ImagePath)

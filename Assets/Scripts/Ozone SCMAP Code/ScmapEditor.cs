@@ -123,8 +123,17 @@ public partial class ScmapEditor : MonoBehaviour
 			yield break;
 		}
 
+		ApplyLoadedMap();
+		yield return null;
+	}
 
-		if (map.VersionMinor >= 60)
+	/// Builds the terrain, water and materials from `map`. Shared by the FA
+	/// .scmap loader above and Sanctuary.SanctuaryMapLoader.
+	public void ApplyLoadedMap()
+	{
+		UpdateLighting();
+
+		if (map.VersionMinor >= 60 && !Sanctuary.SanctuaryMapLoader.IsActive)
 		{
 			map.AdditionalSkyboxData.Data.UpdateSize();
 		}
@@ -202,8 +211,6 @@ public partial class ScmapEditor : MonoBehaviour
 		{
 			ToogleSlope(Slope);
 		}
-
-		yield return null;
 	}
 
 	public void LoadHeights()
@@ -235,6 +242,29 @@ public partial class ScmapEditor : MonoBehaviour
 		TerrainHeight = 1f / yRes;
 		TerrainHeight *= 0.1f;
 		TerrainHeight *= 2;
+
+		if (Sanctuary.SanctuaryMapLoader.IsActive)
+		{
+			// The .sanmap `height` is the metres a raw value of 65536 reaches;
+			// the game feeds raw/65536 straight into Unity. Same here, at the
+			// editor's 1/10 scale, so the full 16-bit range is kept.
+			TerrainHeight = Sanctuary.SanctuaryMapLoader.Folder.Map.Height / 10f;
+			Data.size = new Vector3(HalfxRes, TerrainHeight, HalfzRes);
+			Data.RefreshPrototypes();
+			Teren.Flush();
+			Teren.UpdateGIMaterials();
+			SyncHeightmap();
+			Teren.transform.localPosition = new Vector3(0, 0, -HalfzRes);
+
+			heightsLength = xRes + 1;
+			heights = Sanctuary.SanctuaryMapLoader.Folder.Heightmap.ToUnityHeights();
+			ApplyHeightmap(false);
+
+			GenerateControlTex.StopAllTasks();
+			GenerateControlTex.GenerateNormal();
+			GenerateControlTex.GenerateWater();
+			return;
+		}
 
 		Data.size = new Vector3(
 			HalfxRes,
@@ -287,6 +317,11 @@ public partial class ScmapEditor : MonoBehaviour
 	{
 		// Load Stratum Textures Paths
 
+		if (Sanctuary.SanctuaryMapLoader.IsActive)
+		{
+			if (Loading) Sanctuary.SanctuaryMapLoader.ApplyStratumTextures();
+			return;
+		}
 
 		bool NormalMapFix = false;
 
@@ -409,6 +444,17 @@ public partial class ScmapEditor : MonoBehaviour
 
 	public void SetWaterTextures()
 	{
+		if (Sanctuary.SanctuaryMapLoader.IsActive)
+		{
+			// FA's ramp, cubemap and wave normals live in FA's env.scd. A
+			// Sanctuary map gets a generated depth ramp and calm water.
+			Shader.SetGlobalTexture("WaterRampSampler", Sanctuary.SanctuaryMapLoader.WaterRamp());
+			WaterMaterial.SetTexture("SkySampler", DefaultWaterSky);
+			for (int n = 0; n < 4; n++)
+				WaterMaterial.SetTexture("NormalSampler" + n, Sanctuary.SanctuaryMapLoader.CalmWaveNormal());
+			return;
+		}
+
 		Texture2D WaterRamp = GetGamedataFile.LoadTexture2D(map.Water.TexPathWaterRamp, false, true, true);
 		WaterRamp.wrapMode = TextureWrapMode.Clamp;
 		Shader.SetGlobalTexture("WaterRampSampler", WaterRamp);
@@ -615,20 +661,24 @@ public partial class ScmapEditor : MonoBehaviour
 		return ArrayMipMapCount;
 	}
 
+	/// A copy of `stratumTexture` at ArraySize square with a full mip chain,
+	/// ready for Texture2DArray.SetPixels. Rebuilding the chain with
+	/// Apply(true) instead of copying the source's own levels works for any
+	/// mix of sizes and mip counts (the old copy indexed past the source's
+	/// levels when a layer was small, e.g. a 4x4 placeholder).
 	private static Texture2D ScaleStratumTextureIfNeeded(Texture2D stratumTexture, int ArraySize, int ArrayMipMapCount)
 	{
-		if (stratumTexture.width != ArraySize || stratumTexture.height != ArraySize)
-		{
-			Texture2D unscaledTexture = stratumTexture;
-			int MipMaps = stratumTexture.mipmapCount;
-			stratumTexture = TextureScale.Bilinear(stratumTexture, ArraySize, ArraySize);
-			for (int k = 1; k <= ArrayMipMapCount - MipMaps; k++)
-			{
-				stratumTexture.SetPixels(unscaledTexture.GetPixels(MipMaps - k), ArrayMipMapCount - k);
-			}
-		}
+		int fullChain = 1 + (int)Mathf.Log(ArraySize, 2);
+		if (stratumTexture.width == ArraySize && stratumTexture.height == ArraySize && stratumTexture.mipmapCount == fullChain)
+			return stratumTexture;
 
-		return stratumTexture;
+		Texture2D scaled = stratumTexture.width == ArraySize && stratumTexture.height == ArraySize
+			? stratumTexture
+			: TextureScale.Bilinear(stratumTexture, ArraySize, ArraySize);
+		var result = new Texture2D(ArraySize, ArraySize, TextureFormat.RGBA32, true, false);
+		result.SetPixels(scaled.GetPixels(0), 0);
+		result.Apply(true);
+		return result;
 	}
 
 	public void UpdateScales(int id)

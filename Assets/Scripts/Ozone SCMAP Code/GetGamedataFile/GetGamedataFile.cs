@@ -122,6 +122,19 @@ public partial struct GetGamedataFile
 				return Texture2D.whiteTexture;
 		}
 
+		Texture2D texture = TextureFromDdsBytes(FinalTextureData2, LocalPath, SetUnreadable);
+		FinalTextureData2 = null;
+
+		if (StoreInMemory)
+			texture = AddToMemory(TextureKey, ref texture);
+
+		return texture;
+	}
+
+	/// Decodes a whole .dds file. Shared by the FA gamedata loader and the
+	/// Sanctuary texture loader (Sanctuary.SanGamedata).
+	public static Texture2D TextureFromDdsBytes(byte[] FinalTextureData2, string debugName, bool SetUnreadable = false)
+	{
 		TextureFormat format = GetFormatOfDdsBytes(FinalTextureData2);
 		bool Mipmaps = LoadDDsHeader.mipmapcount > 0;
 		Texture2D texture = new Texture2D((int)LoadDDsHeader.width, (int)LoadDDsHeader.height, format, Mipmaps, false);
@@ -142,7 +155,7 @@ public partial struct GetGamedataFile
 			}
 			catch (System.Exception e)
 			{
-				Debug.Log("Texture load fallback: " + LocalPath + "\n" + e);
+				Debug.Log("Texture load fallback: " + debugName + "\n" + e);
 				texture = DDS.DDSReader.LoadDDSTexture2D(new MemoryStream(FinalTextureData2));
 			}
 		}
@@ -152,7 +165,6 @@ public partial struct GetGamedataFile
 			texture = CannelFlip(texture);
 		}
 
-		FinalTextureData2 = null;
 		dxtBytes = null;
 
 		texture.mipMapBias = MipmapBias;
@@ -160,9 +172,6 @@ public partial struct GetGamedataFile
 		texture.anisoLevel = AnisoLevel;
 		if(texture.isReadable)
 			texture.Apply(false, SetUnreadable);
-
-		if (StoreInMemory)
-			texture = AddToMemory(TextureKey, ref texture);
 
 		return texture;
 	}

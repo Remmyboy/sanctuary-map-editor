@@ -70,12 +70,17 @@ static class Program
 				if (!copy.SequenceEqual(h.Raw)) Fail(name, "heightmap Unity-heights round trip changed values");
 
 				// marker heights agree with the terrain (catches a flipped z)
-				double worst = 0;
-				foreach (var kv in f.Map.GetMarkers("Spawn"))
-				{
-					double terrain = TerrainHeight(h, f.Map, kv.Value.Position.X, kv.Value.Position.Z);
-					worst = Math.Max(worst, Math.Abs(terrain - kv.Value.Position.Y));
-				}
+				double worst = 0, worstAny = 0;
+				string worstAnyName = "";
+				foreach (var type in f.Map.MarkerTypes)
+					foreach (var kv in f.Map.GetMarkers(type))
+					{
+						double terrain = TerrainHeight(h, f.Map, kv.Value.Position.X, kv.Value.Position.Z);
+						double d = Math.Abs(terrain - kv.Value.Position.Y);
+						if (type == "Spawn") worst = Math.Max(worst, d);
+						if (d > worstAny) { worstAny = d; worstAnyName = $"{type}/{kv.Key} y={kv.Value.Position.Y:0.##} terrain={terrain:0.##}"; }
+					}
+				if (only != null) Console.WriteLine($"  worst marker of any type: {worstAny:0.00} m ({worstAnyName})");
 
 				// textures
 				string texNote = "";

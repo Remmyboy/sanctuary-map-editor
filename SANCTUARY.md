@@ -17,7 +17,7 @@ the texture and prop libraries, which it reads from a Forged Alliance install.
 |---|---|---|
 | 1 | `.sanmap` format layer, no Unity dependency | **done**, tested on 150 maps |
 | 1b | Project on Unity 6000.3 LTS, headless build | **done**: compiles clean, builds, launches |
-| 2 | Open a `.sanmap` in the editor: terrain, water, markers, playable area | next |
+| 2 | Open a `.sanmap` in the editor: terrain, water, markers, playable area | **done** (see below) |
 | 3 | Save back: heightmap, stratum masks, markers, unedited fields kept | |
 | 4 | Terrain rendering close to the game's `RTS/TerrainLit` (9 layers: albedo, normal, mask, tiling, `diffuseRemap`) | |
 | 5 | Sanctuary texture and prop libraries (`Environment.sanpack`, `.santp`, `.sanmodel`) | |
@@ -81,7 +81,61 @@ The game's own map code (`EM.Map.SanMap`, `EM.Map.MapManager` in
 `Trebuchet.dll`) was read to establish these facts. None of it is copied
 here, and none may be: it is not MIT.
 
-## Phase 2 onwards: where the seams are
+## Phase 2: opening Sanctuary maps
+
+**File > Open** now offers `.sanmap` and starts in the game's Maps folder. To
+open a map without the UI:
+
+```
+Build\SanctuaryMapEditor.exe -sanmap <map folder or .sanmap> [-screenshot out.png] [-quit]
+powershell -File Tools~/open-map.ps1 -Map The_Forge      # same, then prints the loader's log lines
+```
+
+`Assets/Scripts/Sanctuary/Runtime/`:
+
+- `SanctuaryPaths` - finds the game through Steam's library folders.
+- `SanGamedata` - indexes the game's `*.sanpack` files (plain zips) and
+  loads textures the way the game does (the extension a map names is ignored,
+  `.dds` is tried first, `map/` paths resolve in the map folder). It decodes
+  BC7/DX10 DDS, which most Sanctuary strata use and the FA loader can't read.
+- `SanctuaryMapLoader` - fills the editor's FA-shaped state (scenario, markers,
+  HazardX `Map`) from the `.sanmap`, the same way `NewMap` fills it for a blank
+  map, and keeps the `SanMapFolder` open for saving.
+
+What loads:
+
+- **Terrain:** heights come in at full 16-bit precision. The terrain's height is
+  the map's own `height` (128 to 1600 m across the shipped maps) instead of
+  FA's fixed 512 m.
+- **Strata:** all nine layers with the map's tiling, plus both splat masks.
+- **Water:** level and depth.
+- **Playable area:** `PlayableArea`.
+- **Markers:** spawns become FA army markers named after their army; resource
+  markers become mass markers.
+- **Sun direction:** from `sunRA` and `sunDA`.
+
+Checked on 8 maps (developer maps, SCFA conversions, a generated map, 513 to
+4097 resolution, with and without water), with no exceptions. Every marker sits
+within 0.08 m of the terrain on the developer maps and conversions. The Forge's
+one 6.35 m outlier is in the map file itself (`AlloyMarker_3`).
+
+Not yet:
+
+- **Saving** is phase 3.
+- **Props and decals** don't load.
+- **Look:** terrain colours skip the game's per-layer `diffuseRemap`, so they
+  run bright and saturated, and lighting is FA's model (phase 4).
+- **Generated sea:** the water colour is a generated stand-in.
+- **Units:** the FA unit browser stays empty and no longer forces the
+  Preferences dialog open at startup.
+
+Two upstream bugs fixed along the way:
+
+- **Stratum texture array:** building it no longer fails when the layers have
+  different sizes or mip counts.
+- **Loading popup:** it no longer throws a null reference when infos are queued.
+
+## Phase 3 onwards: where the seams are
 
 - **Load:** `MapLuaParser.LoadingFile` refuses anything without a
   `version = 3` scenario `.lua` and an FA `env.scd`. Add a `.sanmap` branch

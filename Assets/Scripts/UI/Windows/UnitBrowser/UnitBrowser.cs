@@ -104,8 +104,8 @@ namespace FAF.MapEditor
 
 			if (!EnvPaths.GamedataExist)
 			{
-				Preferences.Open();
-				GenericInfoPopup.ShowInfo("Gamedata path not exist!");
+				// FA units only; a Sanctuary install has none of these files.
+				Debug.LogWarning("No Forged Alliance gamedata; the FA unit browser stays empty.");
 				return;
 			}
 

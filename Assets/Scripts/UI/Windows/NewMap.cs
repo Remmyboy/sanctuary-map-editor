@@ -115,6 +115,7 @@ namespace EditMap
 		IEnumerator CreateFiles()
 		{
 			ScmapEditor.Current.UnloadMap();
+			Sanctuary.SanctuaryMapLoader.Clear();
 			MapLuaParser.Current.ResetUI();
 			MapLuaParser.Current.SaveLuaFile.Unload();
 

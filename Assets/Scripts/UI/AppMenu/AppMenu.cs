@@ -373,12 +373,14 @@ public partial class AppMenu : MonoBehaviour
 
 			var extensions = new[]
 			{
-			new ExtensionFilter("Scenario", "lua")
+			new ExtensionFilter("Sanctuary map", "sanmap"),
+			new ExtensionFilter("SupCom scenario", "lua")
 		};
 
-			var paths = StandaloneFileBrowser.OpenFilePanel("Open map", EnvPaths.GetMapsPath(), extensions, false);
+			string startDir = Sanctuary.SanctuaryPaths.MapsDir ?? EnvPaths.GetMapsPath();
+			var paths = StandaloneFileBrowser.OpenFilePanel("Open map", startDir, extensions, false);
 
-			if (paths.Length > 0 && IsLuaFilePath(paths[0]))// && !string.IsNullOrEmpty(paths[0]) && IsScenarioPath(paths[0]))
+			if (paths.Length > 0 && (IsLuaFilePath(paths[0]) || Sanctuary.SanctuaryMapLoader.IsSanmapPath(paths[0])))
 			{
 				StoreSelectedFile = paths[0];
 			}
@@ -393,6 +395,13 @@ public partial class AppMenu : MonoBehaviour
 	{
 		if (string.IsNullOrEmpty(path))
 			return;
+
+		if (Sanctuary.SanctuaryMapLoader.IsSanmapPath(path))
+		{
+			MapLuaParser.Current.StartCoroutine(Sanctuary.SanctuaryMapLoader.Load(path));
+			StoreSelectedFile = "";
+			return;
+		}
 
 		string[] PathSeparation = path.Replace("\\", "/").Replace(".lua", "").Split("/".ToCharArray());
 

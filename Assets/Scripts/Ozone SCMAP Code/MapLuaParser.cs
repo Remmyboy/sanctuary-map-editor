@@ -190,6 +190,7 @@ public partial class MapLuaParser : MonoBehaviour
 		while (SavingMapProcess)
 			yield return null;
 
+		Sanctuary.SanctuaryMapLoader.Clear();
 		Undo.Current.Clear();
 
 		bool AllFilesExists = true;
@@ -724,7 +725,8 @@ public partial class MapLuaParser : MonoBehaviour
 		Point1.z = -Point0.y;
 
 		Point0.y = -0.1f;
-		Point1.y = 26f;
+		// FA terrain tops out at 25.6 units; Sanctuary maps go up to 160.
+		Point1.y = Mathf.Max(26f, ScmapEditor.TerrainHeight + 1f);
 
 		//Debug.Log(Point0);
 		//Debug.Log(Point1);

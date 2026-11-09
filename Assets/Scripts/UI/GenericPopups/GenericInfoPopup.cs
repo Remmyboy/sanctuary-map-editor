@@ -79,6 +79,10 @@ public class GenericInfoPopup : MonoBehaviour {
 	bool Started = false;
 	void StartNextInfoPopup()
 	{
+		// The loading popup shares this component without a fade group;
+		// only the toast instance (grp set) shows queued infos.
+		if (grp == null || InfoText == null)
+			return;
 		InfoText.text = InfoStrings[0];
 		grp.alpha = 0;
 		lerp = 0;
