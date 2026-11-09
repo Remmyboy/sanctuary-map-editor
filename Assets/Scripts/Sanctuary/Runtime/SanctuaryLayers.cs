@@ -117,6 +117,29 @@ namespace Sanctuary
 			Debug.Log($"Sanctuary layer {i}: {albedoStem} (normal {normal ?? "kept"}, mask {mask ?? "kept"}, tint {(tint.HasValue ? tint.Value.ToString() : "kept")})");
 		}
 
+		/// For undo: layer `i`'s JSON (paths, tint, everything) and the
+		/// textures it shows, put back exactly as they are now.
+		public static Action Snapshot(int i)
+		{
+			var layer = Layer(i);
+			if (layer == null) return () => { };
+			var json = (JObject)layer.DeepClone();
+			var ed = ScmapEditor.Current;
+			string albedo = ed.Textures[i].AlbedoPath, normal = ed.Textures[i].NormalPath;
+			return () =>
+			{
+				var layers = SanctuaryMapLoader.Folder?.Map.StratumLayers;
+				if (layers == null || i >= layers.Count) return;
+				layers[i] = json.DeepClone();
+				ed.Textures[i].AlbedoPath = albedo;
+				ed.Textures[i].Albedo = SanGamedata.LoadTexture(albedo, false) ?? Texture2D.grayTexture;
+				ed.Textures[i].NormalPath = normal;
+				if (normal != null) ed.Textures[i].Normal = SanGamedata.LoadTexture(normal, true) ?? GetGamedataFile.emptyNormalTexture;
+				RefreshLayer(i);
+				SanctuaryTexturePicker.Refresh();
+			};
+		}
+
 		public static Color GetTint(int i)
 		{
 			var r = Layer(i)?["diffuseRemap"] as JObject;
@@ -188,6 +211,12 @@ namespace Sanctuary
 			current.enabled = true;
 		}
 
+		/// After an undo: show the layer's tint as it now is.
+		public static void Refresh()
+		{
+			if (current != null) current.tint = SanctuaryLayers.GetTint(current.layer);
+		}
+
 		bool overWindow;
 
 		/// The editor learns the mouse is over its 3D view from UI pointer
@@ -240,6 +269,8 @@ namespace Sanctuary
 						GUILayout.BeginVertical(GUILayout.Width(126));
 						if (GUILayout.Button(Thumb(stem), GUILayout.Width(120), GUILayout.Height(120)))
 						{
+							int l = layer;
+							UndoHistory.HistorySanctuaryState.Register(() => SanctuaryLayers.Snapshot(l));
 							SanctuaryLayers.SetTexture(layer, stem);
 							tint = SanctuaryLayers.GetTint(layer);
 						}
@@ -256,7 +287,12 @@ namespace Sanctuary
 			tint.g = GUILayout.HorizontalSlider(tint.g, 0f, 1.5f);
 			tint.b = GUILayout.HorizontalSlider(tint.b, 0f, 1.5f);
 			GUILayout.BeginHorizontal();
-			if (GUILayout.Button("Apply tint")) SanctuaryLayers.SetTint(layer, tint);
+			if (GUILayout.Button("Apply tint"))
+			{
+				int l = layer;
+				UndoHistory.HistorySanctuaryState.Register(() => SanctuaryLayers.Snapshot(l));
+				SanctuaryLayers.SetTint(layer, tint);
+			}
 			if (GUILayout.Button("Close")) enabled = false;
 			GUILayout.EndHorizontal();
 			GUI.DragWindow();

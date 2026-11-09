@@ -22,7 +22,8 @@ remote.
 | 3 | Save back: heightmap, stratum masks, markers, unedited fields kept | **done**: verified in game |
 | 3b | Save As, regenerated `preview.png`, New Map for Sanctuary | **done**: a new map plays in game |
 | 4 | Terrain rendering close to the game's `RTS/TerrainLit` | partly: layer colours calibrated against the game's previews; the game's shader source would make it exact |
-| 5 | Sanctuary prop library (`.santp`, `.sanmodel`): show and edit props | **done**: show, paint, erase, save; the saved map plays in game |
+| 5 | Sanctuary prop library (`.santp`, `.sanmodel`): show and edit props | **done**: show, paint, erase, select/move/turn/scale/delete, undo; the saved map plays in game |
+| 5c | Playable area editor (type or drag), undo for the Sanctuary tools | **done**: the game reads the drawn area |
 | 5b | Markers tool, texture layer picker | **done**: the saved map plays in game |
 | 7 | Release zip (`Tools~/package.ps1`) | **done**; not published |
 | 6a | Sanctuary-only: SupCom formats, FA install, FAF services and links removed from the product | **done** |
@@ -341,19 +342,39 @@ Checked:
   pick sets the albedo with its sibling normal and mask, and the tint the
   shipped maps use with it (or white). The sliders set the layer's tint
   (`diffuseRemap`, linear). Scale is the layer's usual field.
-- **Props:** the **Props** button (top left) opens the panel. All props draw
-  instanced with their albedo, lit like the terrain (no normal maps or wind).
-  *Paint* scatters the chosen prop over a circle, on the ground, with random
-  turn; *Erase* removes every prop in the circle. The props list is rewritten
-  only when it changed, so an unedited map keeps its props byte for byte.
-- **Not yet:** undo for picker, tint and prop edits; a brush circle in the
-  view for the prop tools.
+- **Props:** the **Props** button (middle of the menu bar) opens the panel.
+  All props draw instanced with their albedo, lit like the terrain (no normal
+  maps or wind). A circle on the ground shows the brush; `[` and `]` resize it.
+  *Paint* scatters the chosen prop over the circle, on the ground, with random
+  turn; *Erase* removes every prop in it. *Select* picks the prop clicked
+  (ringed): drag it to move it along the ground, turn it 15° or 90°, make it
+  smaller or bigger, drop it to the ground, or delete it (Delete key). Props
+  are replaced, never changed in place, and the list is rewritten only when it
+  differs from the last load or save, so an unedited map keeps its props byte
+  for byte.
+- **Playable area:** Map > Areas edits the map's one playable area (FA maps had
+  a list of script areas; the extra ones were never saved). Type the edges, or
+  drag a rectangle on the map; it snaps to 4 m with rounding on.
+- **Undo:** Ctrl+Z / Ctrl+Y undo and redo each brush stroke, prop drag, prop
+  button, texture pick, tint and playable-area drag, through the editor's own
+  undo list. An undone prop edit counts as unsaved only if it differs from the
+  last save.
 
 Command line checks, each followed by `-menusave` or `-saveto`:
 `-testmarkers` (a spawn and an alloy spot added at the centre, one alloy spot
 removed), `-testlayers` (layer 2 to Winter `dirty_ground`, layer 1 scale
 doubled), `-testprops` (25 Highlands trees painted at the centre, every prop
-within 40 m of a point 120 m east erased).
+within 40 m of a point 120 m east erased), `-testtools` (19 PASS/FAIL checks
+of the Select tool, a paint stroke, a texture pick, a tint and a drawn
+playable area, each undone and redone through the editor's undo; leaves the
+playable area at 200-824 m, one prop moved 20 m east and one deleted).
+
+`-testtools` on Two Step Shuffle: 19 of 19 pass, and the saved map differs from
+the original in exactly the area and the two props. Saved into the game, a
+skirmish's playable area reads 200-824 m: points at 210 and 815 m are inside,
+190 and 830 m outside (2026-11-09). The mouse handling itself (the drags, the
+circle following the cursor) has not been run: the scripts call the same
+edit functions the mouse does, and nobody has used it by hand yet.
 
 Checked: on Forge and Alpha 7 the marker files diff exactly as intended;
 the layer edit diffs exactly; Forge's 63,538 props load, and paint, erase and

@@ -65,6 +65,100 @@ namespace Sanctuary
 			Debug.Log($"Sanctuary test props: painted {placed}, erased {erased}; {SanctuaryProps.Count} props now");
 		}
 
+		/// -testtools: the props Select tool, a paint stroke, a texture pick
+		/// and a drawn playable area, each through the code the mouse calls,
+		/// each undone and redone through the editor's Undo, with every
+		/// result checked and logged as PASS/FAIL. Leaves three edits for a
+		/// save to show: playable area 200-824 m on both axes, the first
+		/// prop moved 20 m east, the second prop deleted.
+		public static void ApplyTools()
+		{
+			if (!SanctuaryMapLoader.IsActive) return;
+			int fails = 0;
+			void Check(string what, bool ok) { if (!ok) fails++; Debug.Log($"Sanctuary tools test: {(ok ? "PASS" : "FAIL")} {what}"); }
+			var undo = global::Undo.Current;
+			float c = SanctuaryMapLoader.Size / 2f;
+
+			// Paint, then undo: count and saved state come back.
+			int n0 = SanctuaryProps.Count;
+			UndoHistory.HistorySanctuaryState.Register(SanctuaryProps.Snapshot);
+			int painted = SanctuaryProps.Paint("Environment/01_Highlands/Props/edbm0149/edbm0149.santp", c, c, 30, 12, new System.Random(2));
+			Check($"paint adds {painted}", painted > 0 && SanctuaryProps.Count == n0 + painted && SanctuaryProps.Dirty);
+			undo.DoUndo();
+			Check("undo paint restores the count and the clean state", SanctuaryProps.Count == n0 && !SanctuaryProps.Dirty);
+			undo.DoRedo();
+			Check("redo paint", SanctuaryProps.Count == n0 + painted && SanctuaryProps.Dirty);
+			undo.DoUndo();
+
+			// Select: a click on a prop picks that prop (or one standing on
+			// the same spot: props come in clumps).
+			var groups = SanctuaryProps.Groups();
+			var first = groups[0].Transforms[0];
+			string type = groups[0].BlueprintPath;
+			bool got = SanctuaryProps.Pick((float)first.Position.X, (float)first.Position.Z, 3f, out var pickedType, out var picked);
+			Check($"pick at a prop finds a prop {(got ? System.Math.Sqrt((picked.Position.X - first.Position.X) * (picked.Position.X - first.Position.X) + (picked.Position.Z - first.Position.Z) * (picked.Position.Z - first.Position.Z)) : -1):0.00} m from the click",
+				got && System.Math.Abs(picked.Position.X - first.Position.X) < 0.01 && System.Math.Abs(picked.Position.Z - first.Position.Z) < 0.01);
+			Check("pick far from any prop finds none", !SanctuaryProps.Pick(-500, -500, 3f, out _, out _));
+
+			// Turn 90 degrees, undo, redo, undo.
+			float h0 = SanctuaryPropsPanel.Heading(first);
+			UndoHistory.HistorySanctuaryState.Register(SanctuaryProps.Snapshot);
+			var turned = SanctuaryPropsPanel.Turn(first, 90);
+			SanctuaryProps.Replace(type, first, turned);
+			Check($"turn 90: heading {h0:0} -> {SanctuaryPropsPanel.Heading(turned):0}", Mathf.Abs(Mathf.DeltaAngle(h0 + 90, SanctuaryPropsPanel.Heading(turned))) < 0.5f);
+			undo.DoUndo();
+			Check("undo turn puts the original back", SanctuaryProps.Contains(type, first) && !SanctuaryProps.Contains(type, turned) && !SanctuaryProps.Dirty);
+			undo.DoRedo();
+			Check("redo turn", SanctuaryProps.Contains(type, turned));
+			undo.DoUndo();
+
+			// Scale.
+			UndoHistory.HistorySanctuaryState.Register(SanctuaryProps.Snapshot);
+			var bigger = SanctuaryPropsPanel.Scaled(first, 1.1);
+			SanctuaryProps.Replace(type, first, bigger);
+			Check($"scale x1.1: {first.Scale.Y:0.000} -> {bigger.Scale.Y:0.000}", System.Math.Abs(bigger.Scale.Y - first.Scale.Y * 1.1) < 0.001);
+			undo.DoUndo();
+			Check("undo scale", SanctuaryProps.Contains(type, first));
+
+			// Texture pick on layer 3, undone: the layer's JSON is exactly as loaded.
+			var layers = SanctuaryMapLoader.Folder.Map.StratumLayers;
+			string json0 = layers[3].ToString();
+			UndoHistory.HistorySanctuaryState.Register(() => SanctuaryLayers.Snapshot(3));
+			SanctuaryLayers.SetTexture(3, "Environment/Winter/Stratum/dirty_ground_albedo");
+			Check("texture pick changes layer 3", layers[3].ToString() != json0);
+			undo.DoUndo();
+			Check("undo texture pick restores layer 3 exactly", layers[3].ToString() == json0 && ScmapEditor.Current.Textures[3].AlbedoPath != null && !ScmapEditor.Current.Textures[3].AlbedoPath.Contains("Winter"));
+			undo.DoRedo();
+			Check("redo texture pick", layers[3].ToString() != json0);
+			undo.DoUndo();
+			UndoHistory.HistorySanctuaryState.Register(() => SanctuaryLayers.Snapshot(3));
+			SanctuaryLayers.SetTint(3, new Color(0.5f, 0.4f, 0.3f));
+			undo.DoUndo();
+			Check("undo tint restores layer 3 exactly", layers[3].ToString() == json0);
+
+			// Playable area drawn from (200, 200) to (824, 824), undone, redone (kept).
+			var area0 = MapLuaParser.Current.SaveLuaFile.Data.areas[0].rectangle;
+			UndoHistory.HistorySanctuaryState.Register(global::AreaInfo.CaptureAreas);
+			global::AreaInfo.SetPlayableArea(new Vector2(824, 200), new Vector2(200, 824));
+			var r = MapLuaParser.Current.SaveLuaFile.Data.areas[0].rectangle;
+			float size = SanctuaryMapLoader.Size;
+			Check($"draw area: {r}", r.x == 200 && r.width == 824 && r.y == size - 824 && r.height == size - 200);
+			undo.DoUndo();
+			Check("undo area", MapLuaParser.Current.SaveLuaFile.Data.areas[0].rectangle == area0);
+			undo.DoRedo();
+			Check("redo area", MapLuaParser.Current.SaveLuaFile.Data.areas[0].rectangle == r);
+
+			// Kept for the save: first prop 20 m east (on the ground), second prop deleted.
+			UndoHistory.HistorySanctuaryState.Register(SanctuaryProps.Snapshot);
+			var moved = SanctuaryPropsPanel.Moved(first, first.Position.X + 20, first.Position.Z);
+			SanctuaryProps.Replace(type, first, moved);
+			var second = groups[0].Transforms[1];
+			UndoHistory.HistorySanctuaryState.Register(SanctuaryProps.Snapshot);
+			SanctuaryProps.Remove(groups[0].BlueprintPath, second);
+			Check($"kept: {groups[0].BlueprintPath} #0 moved to x {moved.Position.X:0.###} y {moved.Position.Y:0.###}, #1 deleted; {SanctuaryProps.Count} props", SanctuaryProps.Count == n0 - 1 && SanctuaryProps.Dirty);
+			Debug.Log($"Sanctuary tools test: {fails} failed");
+		}
+
 		/// FA map coordinates (x, metres up, z from north) on the terrain, as the
 		/// Markers tool places them.
 		static Vector3 OnGround(float x, float z)

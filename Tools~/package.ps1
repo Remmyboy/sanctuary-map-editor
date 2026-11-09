@@ -1,15 +1,16 @@
-# Build the editor and zip what a user needs to run it.
-#   powershell -File Tools~/package.ps1 [-Version v0.1] [-NoBuild]
+﻿# Build the editor and zip what a user needs to run it.
+#   powershell -File Tools~/package.ps1 [-Version v0.1] [-NoBuild] [-From Build]
+# -From packages another build folder (e.g. while Build\ is open).
 # Writes release\SanctuaryMapEditor-<version>-win64.zip: the exe, Unity's
 # runtime files, the data folder, LICENSE.md and a short README.txt. Test
 # screenshots and other files left in Build\ are not included. Publishing
 # (a GitHub release) is a separate, deliberate step.
-param([string]$Version = "v0.1", [switch]$NoBuild)
+param([string]$Version = "v0.2", [switch]$NoBuild, [string]$From = "Build")
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$build = Join-Path $root 'Build'
+$build = if ([IO.Path]::IsPathRooted($From)) { $From } else { Join-Path $root $From }
 if (-not $NoBuild) {
-	& (Join-Path $PSScriptRoot 'build.ps1') | Write-Output
+	& (Join-Path $PSScriptRoot 'build.ps1') -Out $build | Write-Output
 	if ($LASTEXITCODE -ne 0) { throw "build failed" }
 }
 $keep = @('SanctuaryMapEditor.exe', 'UnityPlayer.dll', 'UnityCrashHandler64.exe', 'SanctuaryMapEditor_Data', 'MonoBleedingEdge', 'D3D12')

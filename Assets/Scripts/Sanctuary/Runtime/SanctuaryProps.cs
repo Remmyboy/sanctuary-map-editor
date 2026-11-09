@@ -31,12 +31,16 @@ namespace Sanctuary
 		static readonly Dictionary<string, PropType> types = new Dictionary<string, PropType>(StringComparer.OrdinalIgnoreCase);
 		static readonly List<string> order = new List<string>();
 
-		/// Set by painting or erasing; the saver writes props only when true,
-		/// so an unedited map's prop list is never rewritten.
-		public static bool Dirty { get; private set; }
+		/// True when the props differ from the last load or save; the saver
+		/// writes props only then, so an unedited map's prop list is never
+		/// rewritten. Each edit gets a new version number and undo puts the
+		/// old one back, so undoing to the saved state is clean again.
+		public static bool Dirty => version != savedVersion;
+		static int version, savedVersion, nextVersion;
+		static void Edited() => version = ++nextVersion;
 		public static bool Visible = true;
 
-		public static void MarkSaved() => Dirty = false;
+		public static void MarkSaved() => savedVersion = version;
 		public static int Count => types.Values.Sum(t => t.Transforms.Count);
 
 		static SanctuaryProps Current
@@ -57,7 +61,76 @@ namespace Sanctuary
 			}
 			types.Clear();
 			order.Clear();
-			Dirty = false;
+			version = savedVersion = ++nextVersion;
+		}
+
+		/// For undo: the lists as they are now (props are never changed in
+		/// place, only replaced, so copying the lists is enough).
+		public static Action Snapshot()
+		{
+			var lists = types.ToDictionary(kv => kv.Key, kv => kv.Value.Transforms.ToList(), StringComparer.OrdinalIgnoreCase);
+			int v = version;
+			return () =>
+			{
+				foreach (var kv in types)
+				{
+					var t = kv.Value;
+					var want = lists.TryGetValue(kv.Key, out var l) ? l : new List<SanTransform>();
+					if (t.Transforms.Count == want.Count && t.Transforms.SequenceEqual(want)) continue;
+					t.Transforms.Clear();
+					t.Transforms.AddRange(want);
+					Rebuild(t);
+				}
+				version = v;
+			};
+		}
+
+		/// The prop nearest (x, z) within `maxDistance` metres, if any.
+		public static bool Pick(float x, float z, float maxDistance, out string type, out SanTransform prop)
+		{
+			type = null; prop = null;
+			double best = maxDistance * maxDistance;
+			foreach (var kv in types)
+			{
+				if (kv.Value.Failed) continue;
+				foreach (var s in kv.Value.Transforms)
+				{
+					double d = (s.Position.X - x) * (s.Position.X - x) + (s.Position.Z - z) * (s.Position.Z - z);
+					if (d < best) { best = d; type = kv.Key; prop = s; }
+				}
+			}
+			return prop != null;
+		}
+
+		/// Swaps `old` for `replacement` (same type); false if `old` is gone.
+		public static bool Replace(string type, SanTransform old, SanTransform replacement)
+		{
+			if (!types.TryGetValue(type, out var t)) return false;
+			int i = t.Transforms.IndexOf(old);
+			if (i < 0) return false;
+			t.Transforms[i] = replacement;
+			Rebuild(t);
+			Edited();
+			return true;
+		}
+
+		public static bool Remove(string type, SanTransform prop)
+		{
+			if (!types.TryGetValue(type, out var t) || !t.Transforms.Remove(prop)) return false;
+			Rebuild(t);
+			Edited();
+			return true;
+		}
+
+		public static bool Contains(string type, SanTransform prop) =>
+			type != null && types.TryGetValue(type, out var t) && t.Transforms.Contains(prop);
+
+		/// Ground height in metres at Sanctuary (x, z).
+		public static double GroundAt(double x, double z)
+		{
+			var terrain = ScmapEditor.Current.Teren;
+			var world = new Vector3((float)x / 10f, 0, ((float)z - SanctuaryMapLoader.Size) / 10f);
+			return (terrain.SampleHeight(world) + terrain.transform.position.y) * 10.0;
 		}
 
 		public static void LoadFromMap(SanMapDocument doc)
@@ -214,7 +287,7 @@ namespace Sanctuary
 				});
 				placed++;
 			}
-			if (placed > 0) { Rebuild(t); Dirty = true; }
+			if (placed > 0) { Rebuild(t); Edited(); }
 			return placed;
 		}
 
@@ -231,7 +304,7 @@ namespace Sanctuary
 				t.Transforms.RemoveAll(s => (s.Position.X - x) * (s.Position.X - x) + (s.Position.Z - z) * (s.Position.Z - z) <= r2);
 				if (t.Transforms.Count != before) { removed += before - t.Transforms.Count; Rebuild(t); }
 			}
-			if (removed > 0) Dirty = true;
+			if (removed > 0) Edited();
 			return removed;
 		}
 	}
