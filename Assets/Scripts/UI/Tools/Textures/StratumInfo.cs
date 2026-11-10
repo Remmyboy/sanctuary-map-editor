@@ -154,20 +154,57 @@ namespace EditMap
 
 		// Erase: the brush lowers the picked layer instead of raising it (the
 		// same as holding Left Alt, which flips it back while held). Testers
-		// didn't find Alt, so it gets a button while the paint page is open.
+		// didn't find Alt, nor a button at the bottom of the map, so it is a
+		// button on the Paint panel itself, above "Clear entire layer" (a
+		// copy of that button, made at start). The map-bottom button stays
+		// only if the copy can't be made.
 		public static bool EraseMode;
-		static Rect EraseButton => new Rect(Screen.width / 2f - 110, Screen.height - 40, 220, 30);
+		UnityEngine.UI.Button eraseButton;
+		UnityEngine.UI.Text eraseLabel;
+		static Rect EraseButtonRect => new Rect(Screen.width / 2f - 110, Screen.height - 40, 220, 30);
+		static Rect EraseButton => current != null && current.eraseButton != null ? Rect.zero : EraseButtonRect;
+		static StratumInfo current;
+
 		void OnGUI()
 		{
-			if (!Pages[paintPageIndex].gameObject.activeSelf) return;
+			if (eraseButton != null || !Pages[paintPageIndex].gameObject.activeSelf) return;
 			string label = EraseMode ? "Erasing - click to paint" : "Painting - click to erase";
-			if (GUI.Button(EraseButton, label + "  (or hold Alt)")) EraseMode = !EraseMode;
+			if (GUI.Button(EraseButtonRect, label + "  (or hold Alt)")) EraseMode = !EraseMode;
+		}
+
+		void MakeEraseButton()
+		{
+			UnityEngine.UI.Button clear = null;
+			foreach (var b in Pages[paintPageIndex].GetComponentsInChildren<UnityEngine.UI.Button>(true))
+			{
+				var t = b.GetComponentInChildren<UnityEngine.UI.Text>(true);
+				if (t != null && t.text.Trim() == "Clear entire layer") { clear = b; break; }
+			}
+			if (clear == null) { Debug.LogWarning("Erase button: 'Clear entire layer' not found; using the on-map button"); return; }
+			var copy = Instantiate(clear.gameObject, clear.transform.parent);
+			copy.name = "Erase toggle";
+			copy.transform.SetSiblingIndex(clear.transform.GetSiblingIndex());
+			eraseButton = copy.GetComponent<UnityEngine.UI.Button>();
+			eraseButton.onClick = new UnityEngine.UI.Button.ButtonClickedEvent();
+			eraseButton.onClick.AddListener(() => { EraseMode = !EraseMode; UpdateEraseLabel(); });
+			eraseLabel = copy.GetComponentInChildren<UnityEngine.UI.Text>(true);
+			UpdateEraseLabel();
+		}
+
+		void UpdateEraseLabel()
+		{
+			if (eraseLabel == null) return;
+			eraseLabel.text = EraseMode ? "ERASING - click to paint again" : "Erase (or hold Alt)";
+			var img = eraseButton.GetComponent<UnityEngine.UI.Image>();
+			if (img != null) img.color = EraseMode ? new Color(1f, 0.55f, 0.45f) : Color.white;
 		}
 
 		void Start()
 		{
+			current = this;
 			ChangePage(layerPageIndex);
 			SelectStratum(0);
+			MakeEraseButton();
 		}
 
 

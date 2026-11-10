@@ -134,14 +134,17 @@ namespace Sanctuary
 			WindowStateSever.WindowStateSaver.ChangeWindowName(folder.FolderName);
 		}
 
-		/// Folder names become map keys: no spaces, nothing the file system
-		/// or the game's path handling would trip on.
+		/// A folder name as typed, minus what Windows can't store (\ / : * ? "
+		/// < > | and control characters, trailing dots and spaces). It used
+		/// to keep only letters, digits, - and _, so Save As quietly swapped a
+		/// folder named "Zook's [Map] (v2)" for "Zook_s_Map_v2". Measured
+		/// 2026-11-10: the game lists and plays a map in a folder named
+		/// "Zook's [Map] (v2) = +`x" (skirmish vs AI through the probe).
 		public static string SafeFolderName(string name)
 		{
-			var chars = name.Trim().Select(ch => char.IsLetterOrDigit(ch) || ch == '_' || ch == '-' ? ch : '_').ToArray();
-			string s = new string(chars);
-			while (s.Contains("__")) s = s.Replace("__", "_");
-			return s.Trim('_');
+			var bad = Path.GetInvalidFileNameChars();
+			string s = new string(name.Where(ch => !bad.Contains(ch) && !char.IsControl(ch)).ToArray());
+			return s.Trim().TrimEnd('.', ' ');
 		}
 
 		// ---- backup ------------------------------------------------------
