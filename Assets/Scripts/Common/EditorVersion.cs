@@ -6,7 +6,7 @@ using System;
 
 public class EditorVersion : MonoBehaviour
 {
-	private const string EditorBuildVersion = "v0.3"; // Sanctuary Map Editor; the FAF editor it grew from was v1.2
+	private const string EditorBuildVersion = "v0.3.1"; // Sanctuary Map Editor; the FAF editor it grew from was v1.2
 	private const string EditorPrereleaseTag = "";  // add rcX here for release candidates
 	private static string FoundUrl;
 	public bool SearchForNew = true;
