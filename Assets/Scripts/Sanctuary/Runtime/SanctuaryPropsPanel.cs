@@ -235,7 +235,7 @@ namespace Sanctuary
 
 		void HideRings() { brushRing?.Hide(); selRing?.Hide(); }
 
-		static bool MouseOnMap(out Vector2 at)
+		internal static bool MouseOnMap(out Vector2 at)
 		{
 			at = default;
 			var cam = Camera.main;

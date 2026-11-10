@@ -161,6 +161,17 @@
             sampler2D UtilitySamplerA;
             sampler2D UtilitySamplerB;
             sampler2D UtilitySamplerC;
+
+            // Sanctuary inputs, set as globals by SanctuaryTerrainLook and
+            // SanctuaryPathability. No samplers of their own: the shader is
+            // at D3D11's 16, so they borrow the stratum array's.
+            UNITY_DECLARE_TEX2D_NOSAMPLER(_SanTint);
+            UNITY_DECLARE_TEX2D_NOSAMPLER(_SanPath);
+            float _SanTintOn;
+            float _SanTintAlpha;
+            float _SanTintGamma;
+            float _SanMaskFull;
+            float _SanPathOn;
             sampler1D WaterRampSampler;
 
             sampler2D LowerAlbedoSampler;
@@ -367,8 +378,12 @@
             {
                 float3 position = TerrainScale*pixel.mTexWT;
 
-                float4 mask0 = saturate(tex2D(UtilitySamplerA,position)*2-1);
-                float4 mask1 = saturate(tex2D(UtilitySamplerB,position)*2-1);
+                // FA's XP masks are half-range (only values over 0.5 show);
+                // Sanctuary's are full-range (_SanMaskFull).
+                float4 mask0 = tex2D(UtilitySamplerA,position);
+                float4 mask1 = tex2D(UtilitySamplerB,position);
+                mask0 = _SanMaskFull > 0.5 ? saturate(mask0) : saturate(mask0*2-1);
+                mask1 = _SanMaskFull > 0.5 ? saturate(mask1) : saturate(mask1*2-1);
 
                 float4 lowerAlbedo = tex2D(LowerAlbedoSampler,position*LowerAlbedoTile);
                 float4 stratum0Albedo = StratumAlbedoSampler(0,position*Stratum0AlbedoTile);
@@ -400,6 +415,24 @@
                 albedo = lerp(albedo,stratum7Albedo,mask1.w);
                 if(_HideStratum8 == 0)
                 albedo.rgb = lerp(albedo.xyz,upperAlbedo.xyz,upperAlbedo.w);
+
+                // Sanctuary's tint_colors: a colour multiply over the terrain,
+                // 0.5 neutral (generator maps are flat 127), alpha its strength.
+                // The factor is linear light; the editor works in gamma, so it
+                // is raised to _SanTintGamma (1/2.2) before multiplying.
+                if (_SanTintOn > 0.5)
+                {
+                    float4 tint = UNITY_SAMPLE_TEX2D_SAMPLER(_SanTint, _StratumAlbedoArray, saturate(position.xy));
+                    float s = saturate(tint.a * _SanTintAlpha);
+                    float3 k = lerp(float3(1,1,1), tint.rgb * 2, s);
+                    albedo.rgb *= pow(max(k, 0.0001), _SanTintGamma);
+                }
+                // Pathability overlay: red where ground units can't go.
+                if (_SanPathOn > 0.5)
+                {
+                    float blocked = UNITY_SAMPLE_TEX2D_SAMPLER(_SanPath, _StratumAlbedoArray, saturate(position.xy)).r;
+                    albedo.rgb = lerp(albedo.rgb, float3(0.9, 0.1, 0.1), blocked * 0.55);
+                }
 
                 return albedo;
             }

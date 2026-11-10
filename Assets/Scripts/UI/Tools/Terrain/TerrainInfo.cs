@@ -486,16 +486,59 @@ namespace EditMap
 			OnTerrainChanged();
 		}
 
+		/// Raw value per unit of normalised height. Sanctuary's heightmap.raw
+		/// divides by 65536 (SanHeightmap.RawScale); FA's 32768 doubled or
+		/// halved every height going in or out.
+		static double RawHeightScale => Sanctuary.SanctuaryMapLoader.IsActive ? Sanctuary.MapFormat.SanHeightmap.RawScale : ScmapEditor.HeightResize;
+		static ushort ToRaw(float v) => (ushort)Mathf.Clamp((float)System.Math.Round(v * RawHeightScale), 0f, 65535f);
+
+		/// A 16-bit greyscale PNG laid out as the game's own editor writes it
+		/// (MapEditorTerrain.ExportPngHeightmap): north at the top, 0..1 = the
+		/// map's whole height range.
+		internal static void WritePngHeightmap(string path, float[,] data)
+		{
+			int h = data.GetLength(0), w = data.GetLength(1);
+			var tex = new Texture2D(w, h, UnityEngine.Experimental.Rendering.GraphicsFormat.R16_UNorm, UnityEngine.Experimental.Rendering.TextureCreationFlags.None);
+			var px = new ushort[w * h];
+			for (int y = 0; y < h; y++)
+				for (int x = 0; x < w; x++)
+					px[x + y * w] = (ushort)Mathf.Clamp(Mathf.RoundToInt(data[y, x] * 65535f), 0, 65535);
+			tex.SetPixelData(px, 0);
+			tex.Apply(false);
+			File.WriteAllBytes(path, tex.EncodeToPNG());
+			Destroy(tex);
+		}
+
+		/// The reverse, resampled to the terrain's resolution if it differs.
+		internal static bool ReadPngHeightmap(string path, float[,] data)
+		{
+			int h = data.GetLength(0), w = data.GetLength(1);
+			float[,] img;
+			int iw, ih;
+			try { img = Sanctuary.MapFormat.SanPng.ReadFirstChannel(File.ReadAllBytes(path), out iw, out ih); }
+			catch (System.Exception e) { Debug.LogWarning("Heightmap PNG: " + e.Message); return false; }
+			// Image row 0 is the top (north); terrain row 0 is south.
+			for (int y = 0; y < h; y++)
+				for (int x = 0; x < w; x++)
+				{
+					if (iw == w && ih == h) { data[y, x] = img[h - 1 - y, x]; continue; }
+					float fx = (x + 0.5f) / w * iw - 0.5f, fy = (h - 1 - y + 0.5f) / h * ih - 0.5f;
+					int x0 = Mathf.Clamp(Mathf.FloorToInt(fx), 0, iw - 1), y0 = Mathf.Clamp(Mathf.FloorToInt(fy), 0, ih - 1);
+					int x1 = Mathf.Min(x0 + 1, iw - 1), y1 = Mathf.Min(y0 + 1, ih - 1);
+					float tx = Mathf.Clamp01(fx - x0), ty = Mathf.Clamp01(fy - y0);
+					data[y, x] = Mathf.Lerp(Mathf.Lerp(img[y0, x0], img[y0, x1], tx), Mathf.Lerp(img[y1, x0], img[y1, x1], tx), ty);
+				}
+			Debug.Log($"Heightmap PNG {iw}x{ih} read into {w}x{h}");
+			return true;
+		}
+
 		public void ExportHeightmap()
 		{
-			//string Filename = EnvPaths.GetMapsPath() + MapLuaParser.Current.FolderName + "/heightmap.raw";
-			//string Filename = EnvPaths.GetMapsPath() + MapLuaParser.Current.FolderName + "/heightmap.raw";
-
 			var extensions = new[]
 			{
+				new ExtensionFilter("16-bit PNG (the game's editor)", new string[]{"png" }),
 				new ExtensionFilter("Heightmap", new string[]{"raw" }),
 				new ExtensionFilter("WM Heightmap", new string[]{"r16" })
-				//new ExtensionFilter("Stratum mask", "raw, bmp")
 			};
 
 			var paths = StandaloneFileBrowser.SaveFilePanel("Export heightmap", DefaultPath, "heightmap", extensions);
@@ -510,6 +553,14 @@ namespace EditMap
 
 			float[,] data = ScmapEditor.Current.Teren.terrainData.GetHeights(0, 0, w, h);
 
+			if (paths.ToLower().EndsWith(".png"))
+			{
+				WritePngHeightmap(paths, data);
+				EnvPaths.SetLastPath(ExportPathKey, System.IO.Path.GetDirectoryName(paths));
+				GenericInfoPopup.ShowInfo("Heightmap export success!\n" + System.IO.Path.GetFileName(paths));
+				return;
+			}
+
 			using (BinaryWriter writer = new BinaryWriter(new System.IO.FileStream(paths, System.IO.FileMode.Create)))
 			{
 				for (int y = 0; y < h; y++)
@@ -518,7 +569,7 @@ namespace EditMap
 					{
 						// float v = (float)(((double)reader.ReadUInt16() - 0.5) / (double)HeightConversion); << Import
 
-						ushort ThisPixel = (ushort)(data[h - (y + 1), x] * ScmapEditor.HeightResize);
+						ushort ThisPixel = ToRaw(data[h - (y + 1), x]);
 						writer.Write(System.BitConverter.GetBytes(ThisPixel));
 					}
 				}
@@ -619,7 +670,7 @@ namespace EditMap
 						//float value = (pixel.r + pixel.g * (1f / 255f));
 						float value = pixel.r;
 						//uint ThisPixel = (uint)(value * HeightConversion);
-						ushort ThisPixel = (ushort)(value * ScmapEditor.HeightResize);
+						ushort ThisPixel = ToRaw(value);
 						writer.Write(System.BitConverter.GetBytes(ThisPixel));
 					}
 				}
@@ -635,7 +686,7 @@ namespace EditMap
 		{
 			var extensions = new[]
 			{
-				new ExtensionFilter("Heightmap", new string[]{"raw", "r16", "bmp" })
+				new ExtensionFilter("Heightmap", new string[]{"png", "raw", "r16", "bmp" })
 			};
 
 			var paths = StandaloneFileBrowser.OpenFilePanel("Import heightmap", DefaultPath, extensions, false);
@@ -653,7 +704,15 @@ namespace EditMap
 			float[,] data = new float[h, w];
 			//float[,] old = ScmapEditor.Current.Teren.terrainData.GetHeights(0, 0, w, h);
 
-			if (paths[0].ToLower().EndsWith("bmp"))
+			if (paths[0].ToLower().EndsWith("png"))
+			{
+				if (!ReadPngHeightmap(paths[0], data))
+				{
+					GenericPopup.ShowPopup(GenericPopup.PopupTypes.Error, "Error", "Couldn't read that PNG.", "OK", null);
+					return;
+				}
+			}
+			else if (paths[0].ToLower().EndsWith("bmp"))
 			{
 				BMPLoader loader = new BMPLoader();
 				BMPImage img = loader.LoadBMP(paths[0]);
@@ -700,7 +759,7 @@ namespace EditMap
 					{
 						for (int x = 0; x < w; x++)
 						{
-							float v = (float)(reader.ReadUInt16() / ScmapEditor.HeightResize);
+							float v = (float)(reader.ReadUInt16() / RawHeightScale);
 							data[h - (y + 1), x] = v;
 						}
 					}

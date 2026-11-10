@@ -70,12 +70,16 @@ namespace Sanctuary
 				WriteWater(folder);
 				WriteLayerTiling(folder);
 				if (SanctuaryProps.Dirty) { folder.Map.SetProps(SanctuaryProps.Groups()); report.PropsWritten = SanctuaryProps.Count; }
+				// Painted tint, written back in the file's row order (as loaded).
+				if (SanctuaryTerrainLook.TintDirty && SanctuaryTerrainLook.Tint != null)
+					SanGamedata.TextureToTga(SanctuaryTerrainLook.Tint, folder.GetTexture("tint_colors"), northUp: true);
 
 				if (!inPlace) RenameForNewFolder(folder, targetDir);
 				folder.Save(inPlace ? null : targetDir);
 				if (!inPlace) FollowNewFolder(folder);
 				report.SavedTo = folder.Directory;
 				SanctuaryProps.MarkSaved();
+				SanctuaryTerrainLook.MarkTintSaved();
 				report.Problems = folder.Validate();
 			}
 			catch (Exception e)
@@ -289,6 +293,26 @@ namespace Sanctuary
 				byType[type].Add(new KeyValuePair<string, SanTransform>(mk.Name, t));
 				report.MarkersWritten++;
 			}
+
+			// Alloy-spot decals follow their markers (maps that draw spots that way).
+			var changes = new List<(Vector2 from, Vector2? to)>();
+			var added = new List<Vector2>();
+			foreach (var t in doc.MarkerTypes.Where(doc.IsResourceMarkerType))
+			{
+				var now = new Dictionary<string, SanTransform>();
+				if (byType.TryGetValue(t, out var l)) foreach (var p in l) now[p.Key] = p.Value;
+				foreach (var kv in doc.GetMarkers(t))
+				{
+					var from = new Vector2((float)kv.Value.Position.X, (float)kv.Value.Position.Z);
+					if (!now.TryGetValue(kv.Key, out var n)) changes.Add((from, null));
+					else if (n.Position.X != kv.Value.Position.X || n.Position.Z != kv.Value.Position.Z)
+						changes.Add((from, new Vector2((float)n.Position.X, (float)n.Position.Z)));
+					now.Remove(kv.Key);
+				}
+				foreach (var n in now.Values) added.Add(new Vector2((float)n.Position.X, (float)n.Position.Z));
+			}
+			int decalsMoved = SanctuaryDecals.SyncAlloySpots(changes, added);
+			if (decalsMoved > 0) Debug.Log($"Sanctuary save: {decalsMoved} alloy-spot decals kept with their markers");
 
 			foreach (var kv in byType)
 			{

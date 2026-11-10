@@ -263,6 +263,7 @@ namespace Sanctuary
 			yield return null;
 			SanctuaryProps.LoadFromMap(m);
 			SanctuaryPropsPanel.Ensure();
+			SanctuaryToolbar.Ensure();
 
 			// ---- done ---------------------------------------------------
 			var problems = folder.Validate();
@@ -295,6 +296,15 @@ namespace Sanctuary
 		/// both degrees. The editor's lighting model is FA's, so only the sun
 		/// direction and a neutral colour carry over; full Sanctuary lighting
 		/// is phase 4.
+		/// Re-reads the map's lighting values into the editor's view (after
+		/// the Lighting & water window changes them).
+		public static void RefreshLighting()
+		{
+			if (Folder == null || ScmapEditor.Current == null) return;
+			ApplyLighting(Folder.Map, ScmapEditor.Current.map);
+			ScmapEditor.Current.UpdateLighting();
+		}
+
 		static void ApplyLighting(SanMapDocument m, Map map)
 		{
 			float ra = (float)m.Json.Value<double?>("sunRA").GetValueOrDefault(0);
@@ -514,6 +524,7 @@ namespace Sanctuary
 			{
 				Debug.LogError("Stratum masks: " + e.Message);
 			}
+			SanctuaryTerrainLook.Load(Folder);
 		}
 
 		/// The game draws each stratum as albedo x diffuseRemap: the remap

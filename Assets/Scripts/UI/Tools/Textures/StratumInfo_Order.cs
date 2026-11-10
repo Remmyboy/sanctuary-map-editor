@@ -61,6 +61,17 @@ namespace EditMap
 				SetPixels(ToLayer, StratumData);
 			}
 
+			// The Sanctuary layer list (textures, tint, tiling) moves with its
+			// mask; without this a saved map put each mask under the other
+			// layer's texture.
+			var layers = Sanctuary.SanctuaryMapLoader.IsActive ? Sanctuary.SanctuaryMapLoader.Folder?.Map.StratumLayers : null;
+			if (layers != null && FromLayer < layers.Count && ToLayer < layers.Count)
+			{
+				var a = layers[FromLayer];
+				layers[FromLayer] = layers[ToLayer].DeepClone();
+				layers[ToLayer] = a.DeepClone();
+			}
+
 			ScmapEditor.TerrainTexture Prev = ScmapEditor.Current.Textures[FromLayer];
 			ScmapEditor.Current.Textures[FromLayer] = ScmapEditor.Current.Textures[ToLayer];
 			ScmapEditor.Current.Textures[ToLayer] = Prev;

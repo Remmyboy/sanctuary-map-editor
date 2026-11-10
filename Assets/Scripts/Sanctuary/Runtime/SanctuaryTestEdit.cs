@@ -256,5 +256,91 @@ namespace Sanctuary
 			}
 			Debug.Log($"Sanctuary test edit: raised {HeightBox}x{HeightBox} cells at ({c},{c}) by {RaiseMetres} m; painted {MaskBox}x{MaskBox} px at ({mx},{my}) layer 1");
 		}
+
+		/// -testfeatures <scratch dir>: the toolbar's tools, each checked and
+		/// logged PASS/FAIL. Leaves the map changed (tint, decals, lighting);
+		/// layer order, masks and heights end as they began.
+		public static void ApplyFeatures(string dir)
+		{
+			if (!SanctuaryMapLoader.IsActive) return;
+			System.IO.Directory.CreateDirectory(dir);
+			var ed = ScmapEditor.Current;
+			var doc = SanctuaryMapLoader.Folder.Map;
+			float size = SanctuaryMapLoader.Size, c = size / 2f;
+			void Check(string what, bool ok, string detail) => Debug.Log($"Sanctuary test features: {(ok ? "PASS" : "FAIL")} {what}: {detail}");
+
+			// Pathability: some ground blocked (edges at least), not all.
+			SanctuaryPathability.Show(true);
+			float share = SanctuaryPathability.BlockedCells / (float)Mathf.Max(1, SanctuaryPathability.Cells);
+			Check("pathability", share > 0f && share < 0.9f, $"{share * 100f:0.0}% blocked");
+
+			// Tint: a warm stroke at the centre changes the centre texel, then undo puts it back.
+			var tint = SanctuaryTerrainLook.Tint;
+			if (tint != null)
+			{
+				int tx = tint.width / 2, ty = tint.height / 2;
+				var before = tint.GetPixel(tx, ty);
+				var undo = SanctuaryTerrainLook.SnapshotTint();
+				SanctuaryTerrainLook.PaintTint(c, c, 60f, 0.8f, new Color(0.7f, 0.5f, 0.3f));
+				var after = tint.GetPixel(tx, ty);
+				Check("tint paint", after.r > before.r + 0.05f && after.b < before.b - 0.05f && SanctuaryTerrainLook.TintDirty, $"centre {before} -> {after}");
+				undo();
+				Check("tint undo", tint.GetPixel(tx, ty) == before, $"centre {tint.GetPixel(tx, ty)}");
+				SanctuaryTerrainLook.PaintTint(c, c, 60f, 0.8f, new Color(0.7f, 0.5f, 0.3f)); // left painted for the save check
+			}
+			else Check("tint", false, "no tint_colors");
+
+			// Masks: export layer 1, scramble it, import the export: back exactly.
+			string mpath = System.IO.Path.Combine(dir, "layer1_mask.png");
+			var mtex = ed.map.TexturemapTex;
+			var orig = mtex.GetPixels32();
+			SanctuaryToolbar.ExportMaskTo(1, mpath);
+			var scrambled = mtex.GetPixels32();
+			for (int i = 0; i < scrambled.Length; i++) scrambled[i].r = (byte)(255 - scrambled[i].r);
+			mtex.SetPixels32(scrambled); mtex.Apply(false);
+			bool read = SanctuaryToolbar.ImportMaskFrom(1, mpath);
+			var back = mtex.GetPixels32();
+			int diff = 0;
+			for (int i = 0; i < orig.Length; i++) if (orig[i].r != back[i].r || orig[i].g != back[i].g) diff++;
+			Check("mask export/import", read && diff == 0, $"{diff} texels differ of {orig.Length}");
+
+			// Layer order: swapping 1 and 2 swaps their JSON and masks; swapping back restores.
+			var layers = doc.StratumLayers;
+			string a1 = doc.GetStratumTexture(1, "albedo"), a2 = doc.GetStratumTexture(2, "albedo");
+			var stratum = MapLuaParser.Current.EditMenu.EditStratum;
+			stratum.SwitchLayers(1, 2);
+			bool swapped = doc.GetStratumTexture(1, "albedo") == a2 && doc.GetStratumTexture(2, "albedo") == a1;
+			var sw = mtex.GetPixels32();
+			bool masksSwapped = sw[sw.Length / 2].r == orig[orig.Length / 2].g && sw[sw.Length / 2].g == orig[orig.Length / 2].r;
+			stratum.SwitchLayers(1, 2);
+			var re = mtex.GetPixels32();
+			Check("layer reorder", swapped && masksSwapped && doc.GetStratumTexture(1, "albedo") == a1 && re[re.Length / 2].r == orig[orig.Length / 2].r,
+				$"layer 1 {a1} <-> layer 2 {a2}");
+
+			// Heightmap PNG: write and read back within one 16-bit step.
+			var td = ed.Teren.terrainData;
+			int n = td.heightmapResolution;
+			var hs = td.GetHeights(0, 0, n, n);
+			string hpath = System.IO.Path.Combine(dir, "heightmap.png");
+			EditMap.TerrainInfo.WritePngHeightmap(hpath, hs);
+			var hb = new float[n, n];
+			bool hread = EditMap.TerrainInfo.ReadPngHeightmap(hpath, hb);
+			float worst = 0;
+			for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) worst = Mathf.Max(worst, Mathf.Abs(hs[y, x] - hb[y, x]));
+			Check("heightmap png", hread && worst <= 1.01f / 65535f, $"worst {worst * doc.Height * 100f:0.000} cm over {n}x{n}, {new System.IO.FileInfo(hpath).Length / 1024} KB");
+
+			// Decals: add two, erase one.
+			int d0 = SanctuaryDecals.Count;
+			SanctuaryDecals.Add(SanctuaryDecals.AlloySpot, c + 30, c, 8f, 45f);
+			SanctuaryDecals.Add(SanctuaryDecals.AlloySpot, c - 30, c, 8f, 0f);
+			int erased = SanctuaryDecals.Erase(c - 30, c, 3f);
+			Check("decals", SanctuaryDecals.Count == d0 + 1 && erased == 1, $"{d0} -> {SanctuaryDecals.Count}, {SanctuaryDecals.Catalog().Count} types in the game");
+
+			// Lighting: a new sun direction reaches the editor's light.
+			var sunBefore = ed.map.SunDirection;
+			doc.Json["sunRA"] = ((double?)doc.Json["sunRA"] ?? 0) + 90.0;
+			SanctuaryMapLoader.RefreshLighting();
+			Check("lighting", (ed.map.SunDirection - sunBefore).magnitude > 0.1f, $"sun {sunBefore} -> {ed.map.SunDirection}");
+		}
 	}
 }

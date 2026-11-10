@@ -83,6 +83,8 @@ public partial class MapLuaParser : MonoBehaviour
 			if (Args[i] == "-testtools") Sanctuary.SanctuaryTestEdit.ApplyTools();
 			if (Args[i] == "-testplace") Sanctuary.SanctuaryTestEdit.ApplyPlace();
 				if (Args[i] == "-testdrag") Sanctuary.SanctuaryTestEdit.ApplyDrag();
+				if (Args[i] == "-testfeatures" && i + 1 < Args.Length) Sanctuary.SanctuaryTestEdit.ApplyFeatures(Args[i + 1]);
+				if (Args[i] == "-toolbarwindow" && i + 1 < Args.Length) Sanctuary.SanctuaryToolbar.OpenWindow(Args[i + 1]);
 			if (Args[i] == "-quit") quit = true;
 		}
 		if (testEdit) Sanctuary.SanctuaryTestEdit.Apply();

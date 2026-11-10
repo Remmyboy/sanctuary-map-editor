@@ -61,11 +61,32 @@ What you can edit:
     it.
   - **Select** picks one prop to move, turn, scale, drop to the ground or
     delete.
+- **Heightmap import and export:** Terrain tab. 16-bit PNG (the same layout
+  as the game's own editor uses), raw or r16.
+
+The buttons beside **Props** at the top of the window:
+
+- **Pathing:** shows in red where ground units can't go: anywhere steeper
+  than 30 degrees, by the game's own rule. It updates when a terrain brush
+  stroke ends.
+- **Light/water:** the sun's direction, strength and colour, sky light,
+  exposure, fog, and the water's depth, wind and shore settings. The editor
+  shows the sun's direction and colour; the game draws the rest.
+- **Tint:** paints the map's colour tint over the terrain, which can warm,
+  cool, darken or lighten the ground under any texture layer.
+- **Masks:** a texture layer's mask (where it shows) to or from a greyscale
+  PNG.
+- **Decals:** lists the map's decals (the editor can't draw them, so each
+  shows as a ring), adds and erases them. On maps that draw alloy spots with
+  decals, the decals follow their alloy spots when you save.
+
+To change the order of texture layers, use the arrows on the Textures tab;
+each layer's painted mask moves with it.
 
 **Ctrl+Z** undoes and **Ctrl+Y** redoes.
 
-Lighting, sky and decals are kept as they are; you can't edit them yet.
-Terrain colours are close to the game's, but not exact.
+The sky is kept as it is. Terrain colours are close to the game's, but not
+exact.
 
 ## Status
 
@@ -454,6 +475,46 @@ FA-only controls still shown after 6a/6b were hidden by
 factions, colours, AI plans), Markers > Chains and the AI marker layers,
 FAF marker import/export, Terrain > Type (FA terrain types), FA water
 shader inputs, and Textures > Tools (FA stratum templates).
+
+## From the game's own map editor
+
+The game ships its map editor's code (`Trebuchet.dll`, `EM.MapEditor.*`) but
+not its UI: the build's only scene is Main, and `MapManager.mapEditor` is a
+scene setting. It can't be switched on, but it shows what the game's terrain
+gets and what its editor edits. Taken from it (2026-11-10):
+
+- **Texture orientation:** the game's `TGALoader` skips the TGA descriptor
+  byte, so every map's rows run bottom-up whatever the header says. The
+  editor used to honour the 0x28 "top-left" flag that ~120 shipped and
+  converted maps carry, and showed them mirrored north-south. Measured:
+  stratum layers line up with slope and height only read bottom-up, on dev,
+  converted and generated maps alike.
+- **Tint:** `tint_colors.tga` is the terrain's `_TerrainTintTexture`.
+  Generator maps are a flat 127 (neutral); alpha reads as strength (0 on Two
+  Step Shuffle and There Is Time, ~128 on The Forge). The editor shows it as
+  albedo x lerp(1, 2 x tint, alpha x 2), the factor taken as linear light.
+  Against the game's previews it raised the brightness-pattern correlation
+  from 0.58 to 0.70 (The Forge) and 0.56 to 0.74 (White Desert); alpha x 1
+  scored lower, and applying the factor in gamma space scored higher
+  correlation but larger colour error.
+- **Masks:** stratum masks blend over their whole 0-1 range; FA's XP terrain
+  path showed only values over 0.5. Full range raised the match with White
+  Desert's preview (brightness pattern correlation 0.45 -> 0.56).
+- **Pathability:** `MapUtils.IsValidTerrain`: blocked if any cell in the 3x3
+  around has a normal over 30 degrees (normal from heights one cell either
+  side), or within 2 cells of the edge.
+- **Lighting and water fields:** `MapEditorLighting.ApplyValuesToMap` and
+  `MapEditorWater.OnValueChange`, with the same clamps.
+- **Heightmap PNG:** `MapEditorTerrain.ExportPngHeightmap`: 16-bit, north up,
+  0-1 = the map's height range. Unity's `LoadImage` reads 16-bit PNGs as 8
+  bits (a round trip lost up to 2 m), so `SanPng` reads them.
+- **Decals:** `{blueprintPath, transforms}` per type; There Is Time draws its
+  alloy spots as `alloy_spot.sandecal` decals, separate from the markers.
+
+`-testfeatures <dir>` checks each tool (pathability, tint paint and undo,
+mask export and import, layer reorder, heightmap PNG round trip, decals,
+lighting) and logs PASS/FAIL. `Tools~/preview-error.ps1` scores an editor
+render (`-previewdebug`) against the game's `preview.png`.
 
 ## Release zip
 
