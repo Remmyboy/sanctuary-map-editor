@@ -33,7 +33,10 @@ Copy-Item (Join-Path $root 'LICENSE.md') $dir
 Sanctuary Map Editor $Version
 =============================
 
-A map editor for Sanctuary: Shattered Sun. Run SanctuaryMapEditor.exe.
+A map editor for Sanctuary: Shattered Sun. Extract the whole zip first
+(right-click, Extract All), then run SanctuaryMapEditor.exe from the
+extracted folder. Run straight from inside the zip, it stops with
+"UnityPlayer.dll was not found".
 
 - It finds the game through Steam. If it doesn't, set the install folder
   in Edit > Preferences.

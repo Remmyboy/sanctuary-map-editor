@@ -20,8 +20,10 @@ Steam. The Playtest works.
 1. Download `SanctuaryMapEditor-<version>-win64.zip` from the
    [latest release](https://github.com/Remmyboy/sanctuary-map-editor/releases/latest).
 2. Unzip it into a folder of its own (for example
-   `Documents\SanctuaryMapEditor`). Keep everything in that folder together,
-   because the exe needs the files beside it.
+   `Documents\SanctuaryMapEditor`): right-click the zip, **Extract All**.
+   Keep everything in that folder together, because the exe needs the files
+   beside it. Double-clicking the exe while it's still inside the zip gives
+   "UnityPlayer.dll was not found".
 3. Run `SanctuaryMapEditor.exe`. The exe isn't signed, so Windows may show
    "Windows protected your PC" the first time. Click **More info**, then
    **Run anyway**.
