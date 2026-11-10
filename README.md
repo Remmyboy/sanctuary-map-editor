@@ -489,14 +489,9 @@ gets and what its editor edits. Taken from it (2026-11-10):
   converted maps carry, and showed them mirrored north-south. Measured:
   stratum layers line up with slope and height only read bottom-up, on dev,
   converted and generated maps alike.
-- **Tint:** `tint_colors.tga` is the terrain's `_TerrainTintTexture`.
-  Generator maps are a flat 127 (neutral); alpha reads as strength (0 on Two
-  Step Shuffle and There Is Time, ~128 on The Forge). The editor shows it as
-  albedo x lerp(1, 2 x tint, alpha x 2), the factor taken as linear light.
-  Against the game's previews it raised the brightness-pattern correlation
-  from 0.58 to 0.70 (The Forge) and 0.56 to 0.74 (White Desert); alpha x 1
-  scored lower, and applying the factor in gamma space scored higher
-  correlation but larger colour error.
+- **Tint:** `tint_colors.tga` is the terrain's `_TerrainTintTexture`;
+  generator maps are a flat 127 (neutral). How it applies is in the shader
+  (below).
 - **Masks:** stratum masks blend over their whole 0-1 range; FA's XP terrain
   path showed only values over 0.5. Full range raised the match with White
   Desert's preview (brightness pattern correlation 0.45 -> 0.56).
@@ -510,6 +505,41 @@ gets and what its editor edits. Taken from it (2026-11-10):
   bits (a round trip lost up to 2 m), so `SanPng` reads them.
 - **Decals:** `{blueprintPath, transforms}` per type; There Is Time draws its
   alloy spots as `alloy_spot.sandecal` decals, separate from the markers.
+
+### The game's terrain shader
+
+`RTS/TerrainLit` ships compiled (D3D11 bytecode in `sharedassets0.assets`).
+Read on 2026-11-10 by pulling its GBuffer pass out with UnityPy, naming the
+registers from Unity's parameter tables, and disassembling it with
+`d3dcompiler_47.dll`'s `D3DDisassemble`. Nothing of the game's is copied
+into the editor; the maths below is reimplemented in `FaTerrainShader`
+(`TerrainAlbedoXP`, `SanBlend`) and `SanctuaryMapLoader.BakeLayer`. In
+linear light, per pixel:
+
+- **Layer colour:** albedo x 2 x `diffuseRemap.rgb`.
+- **Masks:** each layer's mask texture is remapped per channel,
+  saturate((m - maskRemapMin) / (maskRemapMax - maskRemapMin)); R metallic,
+  G occlusion, B height, A smoothness.
+- **Blend:** base layer, then layers 1-8 in order. A layer with weight w
+  (its alphamap channel) and height H over the running height A:
+  t = saturate(saturate(H - A) - 1 + 2w), then
+  t = saturate((t - 0.217637) x max(HT, 0.5) + 0.217637), and
+  b = w + saturate(HT) x (t - w), with HT = `_HeightTransition` (the map's
+  `heightTransition` squared). Colour, normal and masks lerp by b; w >= 0.99
+  replaces outright.
+- **Distance:** beyond `fadeStartDistance` + `fadeDistance` a layer uses
+  albedo x lerp(1, 2 x remap, remap.a) blended to `farColorRemap.rgb` by its
+  alpha. Every shipped map checked has far alpha 0 and remap.a 1, so far and
+  near match; the editor doesn't model it.
+- **Tint:** colour x `tint.rgb` x 2, always. Its alpha is not a strength: it
+  shifts smoothness by 2a - 1 (0.5 neutral), so a tint alpha near 1 makes
+  ground shinier.
+- **Near water:** ground just above the water line darkens by up to 40%, and
+  `_WaterDepthMask` colours what's below it; the editor's water draws its own.
+
+The editor bakes albedo x 2 x remap (times one display exposure) into each
+layer's on-screen texture, with the mask height in its alpha, and does the
+blend and tint in the shader.
 
 `-testfeatures <dir>` checks each tool (pathability, tint paint and undo,
 mask export and import, layer reorder, heightmap PNG round trip, decals,

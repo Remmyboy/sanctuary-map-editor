@@ -168,9 +168,25 @@
             UNITY_DECLARE_TEX2D_NOSAMPLER(_SanTint);
             UNITY_DECLARE_TEX2D_NOSAMPLER(_SanPath);
             float _SanTintOn;
-            float _SanTintAlpha;
             float _SanTintGamma;
             float _SanMaskFull;
+            float _SanHeightBlend;
+            float _SanHeightTransition; // the map's heightTransition squared, at least 0.0001
+
+            // One layer onto the running colour, as RTS/TerrainLit does it:
+            // w is the layer's painted weight, .a its height (mask blue,
+            // remapped). Heights decide which layer shows where weights mix;
+            // _HeightTransition sets how sharply.
+            void SanBlend(inout float4 col, inout float accH, float4 layer, float w)
+            {
+                if (w <= 0) return;
+                if (w >= 0.99) { col.rgb = layer.rgb; accH = layer.a; return; }
+                float t = saturate(saturate(layer.a - accH) - 1 + 2 * w);
+                t = saturate((t - 0.217637) * max(_SanHeightTransition, 0.5) + 0.217637);
+                float b = w + saturate(_SanHeightTransition) * (t - w);
+                col.rgb = lerp(col.rgb, layer.rgb, b);
+                accH = lerp(accH, layer.a, b);
+            }
             float _SanPathOn;
             sampler1D WaterRampSampler;
 
@@ -397,35 +413,52 @@
                 float4 upperAlbedo = tex2D(UpperAlbedoSampler,position*UpperAlbedoTile);
 
                 float4 albedo = lowerAlbedo;
-                if(_HideStratum0 == 0)
-                albedo = lerp(albedo,stratum0Albedo,mask0.x);
-                if(_HideStratum1 == 0)
-                albedo = lerp(albedo,stratum1Albedo,mask0.y);
-                if(_HideStratum2 == 0)
-                albedo = lerp(albedo,stratum2Albedo,mask0.z);
-                if(_HideStratum3 == 0)
-                albedo = lerp(albedo,stratum3Albedo,mask0.w);
-                if(_HideStratum4 == 0)
-                albedo = lerp(albedo,stratum4Albedo,mask1.x);
-                if(_HideStratum5 == 0)
-                albedo = lerp(albedo,stratum5Albedo,mask1.y);
-                if(_HideStratum6 == 0)
-                albedo = lerp(albedo,stratum6Albedo,mask1.z);
-                if(_HideStratum7 == 0)
-                albedo = lerp(albedo,stratum7Albedo,mask1.w);
+                if (_SanHeightBlend > 0.5)
+                {
+                    // Sanctuary: the game's height blend (RTS/TerrainLit's
+                    // GBuffer pass). Layer textures carry their mask height
+                    // in alpha (SanctuaryMapLoader.BakeLayer).
+                    float accH = lowerAlbedo.a;
+                    if(_HideStratum0 == 0) SanBlend(albedo, accH, stratum0Albedo, mask0.x);
+                    if(_HideStratum1 == 0) SanBlend(albedo, accH, stratum1Albedo, mask0.y);
+                    if(_HideStratum2 == 0) SanBlend(albedo, accH, stratum2Albedo, mask0.z);
+                    if(_HideStratum3 == 0) SanBlend(albedo, accH, stratum3Albedo, mask0.w);
+                    if(_HideStratum4 == 0) SanBlend(albedo, accH, stratum4Albedo, mask1.x);
+                    if(_HideStratum5 == 0) SanBlend(albedo, accH, stratum5Albedo, mask1.y);
+                    if(_HideStratum6 == 0) SanBlend(albedo, accH, stratum6Albedo, mask1.z);
+                    if(_HideStratum7 == 0) SanBlend(albedo, accH, stratum7Albedo, mask1.w);
+                }
+                else
+                {
+                    if(_HideStratum0 == 0)
+                    albedo = lerp(albedo,stratum0Albedo,mask0.x);
+                    if(_HideStratum1 == 0)
+                    albedo = lerp(albedo,stratum1Albedo,mask0.y);
+                    if(_HideStratum2 == 0)
+                    albedo = lerp(albedo,stratum2Albedo,mask0.z);
+                    if(_HideStratum3 == 0)
+                    albedo = lerp(albedo,stratum3Albedo,mask0.w);
+                    if(_HideStratum4 == 0)
+                    albedo = lerp(albedo,stratum4Albedo,mask1.x);
+                    if(_HideStratum5 == 0)
+                    albedo = lerp(albedo,stratum5Albedo,mask1.y);
+                    if(_HideStratum6 == 0)
+                    albedo = lerp(albedo,stratum6Albedo,mask1.z);
+                    if(_HideStratum7 == 0)
+                    albedo = lerp(albedo,stratum7Albedo,mask1.w);
+                }
                 if(_HideStratum8 == 0)
                 albedo.rgb = lerp(albedo.xyz,upperAlbedo.xyz,upperAlbedo.w);
 
-                // Sanctuary's tint_colors: a colour multiply over the terrain,
-                // 0.5 neutral (generator maps are flat 127), alpha its strength.
-                // The factor is linear light; the editor works in gamma, so it
-                // is raised to _SanTintGamma (1/2.2) before multiplying.
+                // Sanctuary's tint_colors, as the game applies it: colour x
+                // tint.rgb x 2, always (0.5 neutral). Its alpha changes only
+                // smoothness (+2a-1), which the editor doesn't draw. The factor
+                // is linear light; the editor works in gamma, so it is raised
+                // to _SanTintGamma (1/2.2).
                 if (_SanTintOn > 0.5)
                 {
                     float4 tint = UNITY_SAMPLE_TEX2D_SAMPLER(_SanTint, _StratumAlbedoArray, saturate(position.xy));
-                    float s = saturate(tint.a * _SanTintAlpha);
-                    float3 k = lerp(float3(1,1,1), tint.rgb * 2, s);
-                    albedo.rgb *= pow(max(k, 0.0001), _SanTintGamma);
+                    albedo.rgb *= pow(max(tint.rgb * 2, 0.0001), _SanTintGamma);
                 }
                 // Pathability overlay: red where ground units can't go.
                 if (_SanPathOn > 0.5)

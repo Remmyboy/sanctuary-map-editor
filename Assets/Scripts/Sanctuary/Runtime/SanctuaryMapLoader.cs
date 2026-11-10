@@ -331,7 +331,13 @@ namespace Sanctuary
 		/// Display calibration, set by matching editor screenshots to the
 		/// game's own preview.png (Tools~/compare-preview.ps1). Overridable
 		/// on the command line: -remapgain, -ambient.
-		public static float RemapGain = 1.2f;
+		/// 2 x a display exposure of 0.7. With the game's own layer maths
+		/// (x2 remap, tint x2, height blend) 1.4 gave the lowest total RGB
+		/// error over five maps' previews (137.7 vs 138.5 at 1.2, 140.6 at
+		/// 1.0) and the best pattern match on four. Per-map brightness
+		/// still varies (There Is Time ~1.3x bright, White Desert ~0.75x):
+		/// the game's per-map sun and exposure explain only part of it.
+		public static float RemapGain = 1.4f;
 		public static float AmbientLevel = 0.6f;
 		public static float SunLevel = 0.8f;
 		/// The game's height and distance fog give its overhead views a cool
@@ -556,9 +562,14 @@ namespace Sanctuary
 			var r = m.StratumLayers?[i]?["diffuseRemap"] as JObject;
 			if (src == null || r == null || string.IsNullOrEmpty(m.GetStratumTexture(i, "albedo")) || !src.isReadable) return false;
 			var remap = new Color(r.Value<float>("r"), r.Value<float>("g"), r.Value<float>("b"), 1);
-			// One gain for every map: normalising per map made light maps
-			// (Two Step Shuffle) 1.7x too bright against the game's preview.
+			// The game's RTS/TerrainLit (read from its compiled GBuffer pass,
+			// 2026-11-10) draws a layer as albedo x 2 x diffuseRemap in
+			// linear light. RemapGain = 2 x the editor's display exposure,
+			// which stands in for the game's exposure and lighting.
 			Color k = remap * RemapGain;
+			// Alpha: the layer's height for the game's height blend - its
+			// mask texture's blue channel through maskRemapMin/Max.z.
+			var heights = LayerHeights(m, i, src.width, src.height);
 			Color hz = (HazeColor(m) * HazeBright).linear;
 			float h = Mathf.Clamp01(HazeLevel), keep = 1f - h;
 			// diffuseRemap is a linear-light multiplier (the game's editor
@@ -572,7 +583,7 @@ namespace Sanctuary
 			{
 				var c = px[p].linear;
 				var o = new Color(c.r * k.r * keep + hz.r * h, c.g * k.g * keep + hz.g * h, c.b * k.b * keep + hz.b * h, 1f).gamma;
-				px[p] = new Color(Mathf.Clamp01(o.r), Mathf.Clamp01(o.g), Mathf.Clamp01(o.b), px[p].a);
+				px[p] = new Color(Mathf.Clamp01(o.r), Mathf.Clamp01(o.g), Mathf.Clamp01(o.b), heights == null ? 0.5f : heights[p]);
 			}
 			var baked = new Texture2D(src.width, src.height, TextureFormat.RGBA32, true, false)
 			{
@@ -582,6 +593,33 @@ namespace Sanctuary
 			baked.Apply(true);
 			ed.Textures[i].Albedo = baked;
 			return true;
+		}
+
+		/// Per albedo texel (w x h, row order as GetPixels): the layer's mask
+		/// blue channel remapped by maskRemapMin/Max.z and saturated, as the
+		/// game's shader does before its height blend. Null without a mask.
+		static float[] LayerHeights(SanMapDocument m, int i, int w, int h)
+		{
+			string path = m.GetStratumTexture(i, "mask");
+			if (string.IsNullOrEmpty(path)) return null;
+			var mask = SanGamedata.LoadTexture(path, true);
+			if (mask == null || !mask.isReadable) return null;
+			var layer = m.StratumLayers?[i] as JObject;
+			float lo = (float?)layer?["maskRemapMin"]?["z"] ?? 0f, hi = (float?)layer?["maskRemapMax"]?["z"] ?? 1f;
+			float span = Mathf.Abs(hi - lo) < 1e-4f ? 1e-4f : hi - lo;
+			var mp = mask.GetPixels(0);
+			int mw = mask.width, mh = mask.height;
+			var result = new float[w * h];
+			for (int y = 0; y < h; y++)
+			{
+				int my = Mathf.Min(mh - 1, y * mh / h);
+				for (int x = 0; x < w; x++)
+				{
+					float b = mp[my * mw + Mathf.Min(mw - 1, x * mw / w)].b;
+					result[y * w + x] = Mathf.Clamp01((b - lo) / span);
+				}
+			}
+			return result;
 		}
 
 		static float Lum(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
