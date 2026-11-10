@@ -507,6 +507,29 @@ namespace Markers
 		}
 
 
+		/// Dragging markers moves only their objects; the saved positions
+		/// followed only after a terrain edit (UpdatingMarkersHeights), so a
+		/// move saved straight away was lost. Copies every moved object's
+		/// position back, on the ground. Unmoved markers (within 1 cm) keep
+		/// their position untouched, so their saved doubles stay exact.
+		public static int SyncPositionsFromObjects()
+		{
+			int moved = 0;
+			foreach (var chain in MapLuaParser.Current.SaveLuaFile.Data.MasterChains)
+				foreach (var mk in chain.Markers)
+				{
+					if (!mk.MarkerObj) continue;
+					Vector3 now = mk.MarkerObj.Tr.localPosition;
+					Vector3 was = ScmapEditor.ScmapPosToWorld(mk.position);
+					if (Mathf.Abs(now.x - was.x) < 0.001f && Mathf.Abs(now.z - was.z) < 0.001f) continue;
+					now.y = ScmapEditor.Current.Teren.SampleHeight(now);
+					mk.MarkerObj.Tr.localPosition = now;
+					mk.position = ScmapEditor.WorldPosToScmap(now);
+					moved++;
+				}
+			return moved;
+		}
+
 		public static bool IsUpdating
 		{
 			get

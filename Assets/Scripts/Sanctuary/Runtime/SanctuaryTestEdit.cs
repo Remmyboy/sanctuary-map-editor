@@ -35,6 +35,20 @@ namespace Sanctuary
 			Debug.Log($"Sanctuary test markers: added {spawn.Name}, {alloy.Name}; removed {gone?.Name}");
 		}
 
+		/// -testdrag: the first alloy spot moved 20 m east the way a drag
+		/// moves it - its object only, not its saved position - so the save
+		/// has to pick the move up from the map.
+		public static void ApplyDrag()
+		{
+			if (!SanctuaryMapLoader.IsActive) return;
+			var mk = MapLuaParser.Current.SaveLuaFile.Data.MasterChains[0].Markers
+				.Find(m => m.MarkerType == SaveLua.Marker.MarkerTypes.Mass && m.MarkerObj);
+			if (mk == null) { Debug.Log("Sanctuary test drag: no alloy spot with an object"); return; }
+			var before = mk.position;
+			mk.MarkerObj.Tr.localPosition += new Vector3(2f, 0, 0); // 20 m in world units
+			Debug.Log($"Sanctuary test drag: moved {mk.Name} object from {before}");
+		}
+
 		/// -testlayers: layer 2 gets Winter's dirty_ground (with its sibling
 		/// normal/mask and the shipped maps' tint for it), layer 1's scale
 		/// doubles, and the texture picker opens on layer 2 for a screenshot.

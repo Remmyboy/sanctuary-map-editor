@@ -152,6 +152,18 @@ namespace EditMap
 			TerrainMaterial.SetFloat("_BrushSize", 0);
 		}
 
+		// Erase: the brush lowers the picked layer instead of raising it (the
+		// same as holding Left Alt, which flips it back while held). Testers
+		// didn't find Alt, so it gets a button while the paint page is open.
+		public static bool EraseMode;
+		static Rect EraseButton => new Rect(Screen.width / 2f - 110, Screen.height - 40, 220, 30);
+		void OnGUI()
+		{
+			if (!Pages[paintPageIndex].gameObject.activeSelf) return;
+			string label = EraseMode ? "Erasing - click to paint" : "Painting - click to erase";
+			if (GUI.Button(EraseButton, label + "  (or hold Alt)")) EraseMode = !EraseMode;
+		}
+
 		void Start()
 		{
 			ChangePage(layerPageIndex);
@@ -175,8 +187,13 @@ namespace EditMap
 
 			if (Pages[paintPageIndex].gameObject.activeSelf)
 			{
-				Invert = Input.GetKey(KeyCode.LeftAlt);
+				Invert = Input.GetKey(KeyCode.LeftAlt) != EraseMode;
 				Smooth = Input.GetKey(KeyCode.LeftShift);
+
+				// The Erase button is IMGUI, which the editor's pointer checks don't see.
+				var gm = Input.mousePosition;
+				if (EraseButton.Contains(new Vector2(gm.x, Screen.height - gm.y)) && !Input.GetMouseButton(0))
+					Edit.MauseOnGameplay = false;
 
 
 

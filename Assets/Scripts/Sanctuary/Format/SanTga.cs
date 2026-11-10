@@ -2,10 +2,17 @@
 // tint maps. No UnityEngine dependency: this compiles in the dotnet test
 // harness (Tools~/SanFormatTests) as well as in the editor.
 //
-// The game ships two header variants and reads both:
-//   descriptor 0x08 - bottom-left origin, 8 alpha bits (stock maps)
-//   descriptor 0x28 - top-left origin (maps from the SCFA converter)
-// and tint_geometry.tga declares 0 alpha bits while still storing 32 bpp.
+// Maps carry two header variants:
+//   descriptor 0x08 - declares a bottom-left origin (the four dev maps)
+//   descriptor 0x28 - declares a top-left origin (the other ~120 shipped maps
+//                     and the SCFA converter's output)
+// but the game's TGALoader skips the descriptor byte, so the declared origin
+// means nothing: every map stores its rows bottom-up, south edge first.
+// Measured 2026-11-10: stratum layers correlated with heightmap slope and
+// height match, on dev and converted maps alike, only with the rows read
+// bottom-up, whatever the flag. Reading 0x28 files top-down showed those
+// maps mirrored north-south in the editor.
+// tint_geometry.tga declares 0 alpha bits while still storing 32 bpp.
 // Stock files also carry a 26-byte TGA 2.0 footer. A loaded file keeps its
 // header and trailer bytes verbatim, so saving an unedited file reproduces it
 // byte for byte.
@@ -25,14 +32,15 @@ namespace Sanctuary.MapFormat
 		public int Width { get; private set; }
 		public int Height { get; private set; }
 
-		/// BGRA bytes, rows in file order. Use the pixel accessors rather than
-		/// indexing this directly unless you have checked TopLeftOrigin.
+		/// BGRA bytes, rows in file order: bottom row first, as the game reads
+		/// them whatever the header declares.
 		public byte[] Pixels { get; private set; }
 
 		byte[] header;   // 18 bytes + image id
 		byte[] trailer;  // anything after the pixels (TGA 2.0 footer)
 
-		public bool TopLeftOrigin => (header[17] & 0x20) != 0;
+		/// What the header declares. The game ignores it, and so does Offset.
+		public bool DeclaresTopLeftOrigin => (header[17] & 0x20) != 0;
 		public byte Descriptor => header[17];
 
 		public static SanTga Create(int width, int height)
@@ -87,11 +95,10 @@ namespace Sanctuary.MapFormat
 		}
 
 		/// Byte offset of pixel (x, y), with y counted from the BOTTOM row -
-		/// Unity's texture convention - whatever origin the file declares.
+		/// Unity's texture convention and the file's row order (see the top).
 		public int Offset(int x, int yFromBottom)
 		{
-			int row = TopLeftOrigin ? Height - 1 - yFromBottom : yFromBottom;
-			return (row * Width + x) * 4;
+			return (yFromBottom * Width + x) * 4;
 		}
 
 		/// Channel value 0..255; channel 0=R, 1=G, 2=B, 3=A.

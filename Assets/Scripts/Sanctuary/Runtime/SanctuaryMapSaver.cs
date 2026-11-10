@@ -52,6 +52,8 @@ namespace Sanctuary
 			parser.InfoPopup.Show(true, "Saving Sanctuary map...");
 			yield return null;
 			while (Markers.MarkersControler.IsUpdating) yield return null;
+			int dragged = Markers.MarkersControler.SyncPositionsFromObjects();
+			if (dragged > 0) Debug.Log($"Sanctuary save: {dragged} moved markers taken from the map");
 
 			var report = new Report();
 			try
