@@ -5,7 +5,7 @@
 # runtime files, the data folder, LICENSE.md and a short README.txt. Test
 # screenshots and other files left in Build\ are not included. Publishing
 # (a GitHub release) is a separate, deliberate step.
-param([string]$Version = "v0.3.1", [switch]$NoBuild, [string]$From = "Build")
+param([string]$Version = "v0.3.2", [switch]$NoBuild, [string]$From = "Build")
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $build = if ([IO.Path]::IsPathRooted($From)) { $From } else { Join-Path $root $From }
